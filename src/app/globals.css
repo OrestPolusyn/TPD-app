@@ -2,6 +2,7 @@
 
 :root {
   --background: #ffffff;
+  --surface: #f6f7f9;
   --foreground: #17181c;
   --accent: #2f6fed;
   --accent-contrast: #ffffff;
@@ -14,6 +15,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #121316;
+    --surface: #1b1d21;
     --foreground: #f2f3f5;
     --border: #34363c;
     --muted: #a3a9b3;

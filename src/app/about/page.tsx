@@ -15,8 +15,8 @@ export default async function AboutPage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4">
-      <h1 className="text-xl font-semibold">{t("title")}</h1>
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-6">
+      <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
 
       <section>
         <h2 className="mb-1 font-medium">{t("disclaimerTitle")}</h2>

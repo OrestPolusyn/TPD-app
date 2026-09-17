@@ -30,8 +30,8 @@ export default async function MePage() {
     const devLoginEnabled = config.devLoginEnabled();
 
     return (
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 p-4">
-        <h1 className="text-xl font-semibold">{t("loginTitle")}</h1>
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 p-4 sm:p-6">
+        <h1 className="text-2xl font-bold tracking-tight">{t("loginTitle")}</h1>
         <p className="text-sm text-[var(--muted)]">{t("loginHint")}</p>
         {botUsername ? (
           <TelegramLoginWidget botUsername={botUsername} labels={{ failed: t("loginFailed") }} />
@@ -57,8 +57,8 @@ export default async function MePage() {
   ]);
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-4">
-      <h1 className="text-xl font-semibold">{tMe("title")}</h1>
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 p-4 sm:p-6">
+      <h1 className="text-2xl font-bold tracking-tight">{tMe("title")}</h1>
 
       <section>
         <h2 className="mb-2 font-medium">{tMe("myReportsTitle")}</h2>
@@ -67,7 +67,7 @@ export default async function MePage() {
         ) : (
           <ul className="flex flex-col gap-2 text-sm">
             {reports.map((r) => (
-              <li key={r.id} className="rounded-md border border-[var(--border)] p-2">
+              <li key={r.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
                 <a href={`/locations/${r.location_id}#report-${r.id}`} className="underline">
                   {formatDate(r.event_date)}
                 </a>
@@ -86,7 +86,7 @@ export default async function MePage() {
         ) : (
           <ul className="flex flex-col gap-2 text-sm">
             {comments.map((c) => (
-              <li key={c.id} className="rounded-md border border-[var(--border)] p-2">
+              <li key={c.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
                 <p className="whitespace-pre-wrap">{c.body}</p>
                 <span className="text-xs text-[var(--muted)]">{tMe(`moderationStatus.${c.moderation_status}`)}</span>
               </li>
@@ -102,7 +102,7 @@ export default async function MePage() {
         ) : (
           <ul className="flex flex-col gap-2 text-sm">
             {suggestions.map((s) => (
-              <li key={s.id} className="rounded-md border border-[var(--border)] p-2">
+              <li key={s.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
                 <p>
                   {suggestionFieldLabels[s.field] ?? s.field}: <span className="line-through">{s.current_value ?? "—"}</span> → {s.proposed_value}
                 </p>

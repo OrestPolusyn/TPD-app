@@ -24,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="uk" className="h-full">
-      <body className="min-h-full flex flex-col bg-white text-zinc-900 antialiased">
+      <body className="min-h-full flex flex-col bg-[var(--background)] text-[var(--foreground)] antialiased">
         <TelegramProvider>
           <BackButtonBridge />
           <NavBar />

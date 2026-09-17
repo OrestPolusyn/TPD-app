@@ -16,9 +16,11 @@ export default async function HomePage() {
   ]);
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 p-4">
-      <h1 className="text-xl font-semibold">{t("title")}</h1>
-      <p className="text-sm text-[var(--muted)]">{t("subtitle")}</p>
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-4 sm:p-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
+        <p className="mt-1 text-sm text-[var(--muted)]">{t("subtitle")}</p>
+      </div>
       {/* Kept directly under the title (not inside the long SearchForm below)
           so it's visible without scrolling at 375px, per docs/SPEC.md. */}
       <Link

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { searchLocations, getProvinces } from "@/lib/data/locations";
 import { LocationCard } from "@/components/results/LocationCard";
 import { Disclaimer } from "@/components/shared/Disclaimer";
+import { Card } from "@/components/shared/Card";
 import { normalizeDocsParam } from "@/lib/searchParams";
 
 export const dynamic = "force-dynamic";
@@ -52,25 +53,25 @@ export default async function ResultsPage({ searchParams }: ResultsPageProps) {
   const cardSearchQuery = buildQueryString(params, {});
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4">
-      <h1 className="text-xl font-semibold">{t("title", { province: province?.province ?? provinceSlug })}</h1>
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-6">
+      <h1 className="text-2xl font-bold tracking-tight">{t("title", { province: province?.province ?? provinceSlug })}</h1>
 
       {results.length === 0 ? (
-        <div className="rounded-md border border-[var(--border)] p-4 text-sm">
+        <Card className="text-sm">
           <p>{t("noLocations")}</p>
           <Link href="/locations/new" className="mt-2 inline-block underline">
             {t("noLocationsCta")}
           </Link>
-        </div>
+        </Card>
       ) : (
         <>
           {!anyFreshMatches ? (
-            <div className="rounded-md border border-[var(--border)] p-3 text-sm">
+            <Card className="text-sm">
               <p>{t("noMatchingReports")}</p>
               <Link href="/locations" className="mt-1 inline-block underline">
                 {t("addReportCta")}
               </Link>
-            </div>
+            </Card>
           ) : null}
 
           <ul className="flex flex-col gap-3">
