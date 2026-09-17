@@ -52,6 +52,19 @@ export default async function ResultsPage({ searchParams }: ResultsPageProps) {
   const anyFreshMatches = results.some((r) => r.data.fresh_matching_count > 0);
   const cardSearchQuery = buildQueryString(params, {});
 
+  if (!provinceSlug) {
+    return (
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-6">
+        <Card className="text-sm">
+          <p>{t("noProvinceSelected")}</p>
+          <Link href="/locations" className="mt-2 inline-block underline">
+            {t("noProvinceSelectedCta")}
+          </Link>
+        </Card>
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-6">
       <h1 className="text-2xl font-bold tracking-tight">{t("title", { province: province?.province ?? provinceSlug })}</h1>

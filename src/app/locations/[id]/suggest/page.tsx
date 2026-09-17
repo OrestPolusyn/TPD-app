@@ -24,7 +24,7 @@ export default async function SuggestPage({ params }: { params: Promise<{ id: st
 
   if (!user) {
     return (
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-3 p-4">
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-3 p-4 sm:p-6">
         <p className="text-sm">{tAuth("loginHint")}</p>
         <Link href="/me" className="underline text-sm">
           {tAuth("loginTitle")}
@@ -50,8 +50,8 @@ export default async function SuggestPage({ params }: { params: Promise<{ id: st
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 p-4">
-      <h1 className="text-xl font-semibold">{t("title")}</h1>
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-4 sm:p-6">
+      <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
       <p className="text-sm text-[var(--muted)]">{location.name}</p>
       <SuggestForm location={location} labels={labels} />
     </main>

@@ -27,16 +27,17 @@ export async function SearchForm({
         <label htmlFor="province" className="mb-1 block text-sm font-medium">
           {t("provinceLabel")}
         </label>
+        {/* Deliberately not `required`: a native validation block silently
+            swallows the click (no navigation, easy-to-miss bubble), which
+            reads as "the search button is broken". /results handles a
+            missing province with an explicit prompt instead. */}
         <select
           id="province"
           name="province"
-          required
           defaultValue=""
           className="w-full rounded-md border border-[var(--border)] bg-transparent p-2"
         >
-          <option value="" disabled>
-            {t("provincePlaceholder")}
-          </option>
+          <option value="">{t("provincePlaceholder")}</option>
           {provinces.map((p) => (
             <option key={p.province_slug} value={p.province_slug}>
               {p.province}

@@ -19,10 +19,15 @@ export const config = {
 export type PrivacyConfig = { controllerName: string; contactEmail: string };
 
 /**
- * Reads PRIVACY_CONTROLLER_NAME / PRIVACY_CONTACT_EMAIL.
- * In production: throws (fails `next build`, since /privacy is statically rendered).
- * In development: returns null so the page can show a "TODO: not configured" banner.
- * See docs/SPEC.md "Privacy policy" and the build prompt's override for this rule.
+ * Reads PRIVACY_CONTROLLER_NAME / PRIVACY_CONTACT_EMAIL, returning null when
+ * either is missing so /privacy can render a visible "not configured" notice.
+ *
+ * This used to throw in production, which failed `next build` outright — but
+ * `next build` runs with NODE_ENV=production for *every* environment,
+ * including Vercel preview deployments, so a variable scoped to Production
+ * only would brick the whole deployment over one page. The guardrail is now
+ * a loud on-page notice plus a server-side error log, which surfaces the
+ * same misconfiguration without taking the rest of the app down with it.
  */
 export function getPrivacyConfig(): PrivacyConfig | null {
   const controllerName = process.env.PRIVACY_CONTROLLER_NAME;
@@ -33,8 +38,8 @@ export function getPrivacyConfig(): PrivacyConfig | null {
   }
 
   if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "PRIVACY_CONTROLLER_NAME and PRIVACY_CONTACT_EMAIL must both be set in production (see .env.example)."
+    console.error(
+      "PRIVACY_CONTROLLER_NAME and PRIVACY_CONTACT_EMAIL must both be set in production (see .env.example). /privacy is rendering without a named data controller."
     );
   }
 

@@ -1,17 +1,26 @@
 import { getTranslations } from "next-intl/server";
 import { getPrivacyConfig } from "@/lib/config";
 
+// Read the controller env vars per request, not at build time: Vercel builds
+// preview and production deployments with NODE_ENV=production, so statically
+// prerendering this page tied the whole build to env vars that may only be
+// scoped to one environment.
+export const dynamic = "force-dynamic";
+
 export default async function PrivacyPage() {
   const t = await getTranslations("privacy");
   const privacyConfig = getPrivacyConfig();
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4">
-      <h1 className="text-xl font-semibold">{t("title")}</h1>
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-6">
+      <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
 
       {!privacyConfig ? (
-        <div role="alert" className="rounded-md border-2 border-dashed border-[var(--highlight-border)] bg-[var(--highlight-bg)] p-3 text-sm font-medium">
-          {t("controllerMissingDev")}
+        <div role="alert" className="rounded-xl border-2 border-dashed border-[var(--highlight-border)] bg-[var(--highlight-bg)] p-3 text-sm font-medium">
+          <p>{t("controllerMissing")}</p>
+          {process.env.NODE_ENV !== "production" ? (
+            <p className="mt-1 text-xs">{t("controllerMissingDev")}</p>
+          ) : null}
         </div>
       ) : null}
 

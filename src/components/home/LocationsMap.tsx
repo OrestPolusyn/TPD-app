@@ -4,16 +4,19 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Link from "next/link";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import { CITY_COORDINATES } from "@/lib/data/cityCoordinates";
 
-// Leaflet's default marker icon references image URLs that don't survive
-// bundling as-is — re-point them at the package's own bundled assets, the
-// standard workaround for Leaflet + a JS bundler.
+// Leaflet resolves its default marker icons via relative CSS paths that don't
+// survive bundling — re-point them at the bundler's own hashed asset URLs so
+// markers render without depending on an external CDN.
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconRetinaUrl: markerIcon2x.src,
+  iconUrl: markerIcon.src,
+  shadowUrl: markerShadow.src,
 });
 
 const SPAIN_CENTER: [number, number] = [40.2, -3.7];
