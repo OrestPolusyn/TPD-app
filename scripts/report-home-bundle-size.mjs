@@ -1,7 +1,10 @@
 /**
- * Reports the gzipped client-JS size for "/" after `next build`, per
- * docs/SPEC.md's "Client JS for / is under 150 KB gzipped (report it from
- * the build output)" constraint.
+ * Reports the gzipped client-JS size for "/" after `next build`. Originally
+ * enforced docs/SPEC.md's "under 150 KB gzipped" constraint; "/" now embeds
+ * a Leaflet map (see src/components/home/LocationsMap.tsx), a deliberate,
+ * user-requested tradeoff that pushes it over that number. This script is
+ * informational only (never exits non-zero) — treat the 150KB line below as
+ * a historical reference point, not a build gate.
  *
  * Sums: rootMainFiles (the App Router + React runtime shipped to every page)
  * + "/"'s own page-specific client chunks (from its client-reference-manifest).

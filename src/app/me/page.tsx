@@ -33,6 +33,7 @@ export default async function MePage() {
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 p-4 sm:p-6">
         <h1 className="text-2xl font-bold tracking-tight">{t("loginTitle")}</h1>
         <p className="text-sm text-[var(--muted)]">{t("loginHint")}</p>
+        <p className="text-sm text-[var(--muted)]">{t("loginTroubleshooting")}</p>
         {botUsername ? (
           <TelegramLoginWidget botUsername={botUsername} labels={{ failed: t("loginFailed") }} />
         ) : null}

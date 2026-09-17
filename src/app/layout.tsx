@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { NavBar } from "@/components/shared/NavBar";
+import { Footer } from "@/components/shared/Footer";
 import { TelegramProvider } from "@/components/telegram/TelegramProvider";
 import { BackButtonBridge } from "@/components/telegram/BackButtonBridge";
 import "./globals.css";
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <BackButtonBridge />
           <NavBar />
           {children}
+          <Footer />
         </TelegramProvider>
       </body>
     </html>

@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
-import { getLocationById } from "@/lib/data/locations";
+import { getLocationById, getProvinces, getPublishedLocationsGroupedByProvince } from "@/lib/data/locations";
 import { getActiveDocumentTypes } from "@/lib/data/documentTypes";
 import { ReportForm, type ReportFormLabels } from "@/components/reports/ReportForm";
+import { ShareExperienceFlow } from "@/components/reports/ShareExperienceFlow";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,6 @@ export default async function NewReportPage({ searchParams }: PageProps) {
     tDocStatus,
     tAuth,
     tHome,
-    tNav,
     tErrors,
   ] = await Promise.all([
     supabase.auth.getUser(),
@@ -38,29 +38,8 @@ export default async function NewReportPage({ searchParams }: PageProps) {
     getTranslations("documentStatus"),
     getTranslations("auth"),
     getTranslations("home"),
-    getTranslations("nav"),
     getTranslations("errors"),
   ]);
-
-  if (!locationId) {
-    return (
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-3 p-4">
-        <p className="text-sm">{tReportForm("chooseLocationFirst")}</p>
-        <Link href="/locations" className="underline text-sm">
-          {tNav("locations")}
-        </Link>
-      </main>
-    );
-  }
-
-  const location = await getLocationById(supabase, locationId);
-  if (!location || location.moderation_status !== "published") {
-    return (
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-3 p-4">
-        <p className="text-sm">{tErrors("notFound")}</p>
-      </main>
-    );
-  }
 
   if (!user) {
     return (
@@ -127,6 +106,47 @@ export default async function NewReportPage({ searchParams }: PageProps) {
     submitButton: tReportForm("submitButton"),
     submitting: tCommon("submitting"),
   };
+
+  if (!locationId) {
+    const tLocations = await getTranslations("locations");
+    const [provinces, grouped] = await Promise.all([
+      getProvinces(supabase),
+      getPublishedLocationsGroupedByProvince(supabase),
+    ]);
+    const locations = [...grouped.values()].flat().map((l) => ({
+      id: l.id,
+      name: l.name,
+      province_slug: l.province_slug,
+      city: l.city,
+    }));
+
+    return (
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 p-4">
+        <h1 className="text-xl font-semibold">{tReportForm("title")}</h1>
+        <ShareExperienceFlow
+          provinces={provinces}
+          locations={locations}
+          documentTypes={documentTypes}
+          pickerLabels={{
+            provinceLabel: tLocations("provinceLabel"),
+            provincePlaceholder: tLocations("provincePlaceholder"),
+            officeLabel: tLocations("officeLabel"),
+            officePlaceholder: tLocations("officePlaceholder"),
+          }}
+          reportFormLabels={labels}
+        />
+      </main>
+    );
+  }
+
+  const location = await getLocationById(supabase, locationId);
+  if (!location || location.moderation_status !== "published") {
+    return (
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-3 p-4">
+        <p className="text-sm">{tErrors("notFound")}</p>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 p-4">

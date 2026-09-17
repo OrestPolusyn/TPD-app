@@ -80,7 +80,6 @@ export async function SearchForm({
         {t("searchButton")}
       </button>
 
-      <p className="text-xs text-[var(--muted)]">{t("shareCtaHint")}</p>
       <MainButtonBridge formId="search-form" text={t("searchButton")} />
     </form>
   );
