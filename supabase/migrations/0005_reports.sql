@@ -122,8 +122,11 @@ create table flags (
   unique (user_id, target_type, target_id)
 );
 
+-- SECURITY DEFINER: this is a system-triggered state change (3 distinct
+-- flaggers), not a moderator action, so it must bypass the moderator-only RLS
+-- policy on reports/comments UPDATE rather than run as the flagging user.
 create or replace function flags_promote_to_flagged() returns trigger
-  language plpgsql as $$
+  language plpgsql security definer set search_path = public as $$
 declare
   v_distinct_flaggers int;
 begin

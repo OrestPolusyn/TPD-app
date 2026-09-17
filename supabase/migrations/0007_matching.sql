@@ -92,7 +92,8 @@ begin
         'report_id', id, 'event_date', event_date, 'is_fresh', is_fresh
       ) order by event_date desc), '[]'::jsonb) from classified where klass = 'incomplete'),
     'more_docs', (select coalesce(jsonb_agg(jsonb_build_object(
-        'report_id', id, 'event_date', event_date, 'is_fresh', is_fresh, 'extra_docs', r_docs - v_effective_u
+        'report_id', id, 'event_date', event_date, 'is_fresh', is_fresh,
+        'extra_docs', array(select unnest(r_docs) except select unnest(v_effective_u))
       ) order by event_date desc), '[]'::jsonb) from classified where klass = 'more_docs'),
     'unsuccessful', (select coalesce(jsonb_agg(jsonb_build_object(
         'report_id', id, 'event_date', event_date, 'outcome', outcome, 'is_fresh', is_fresh
@@ -115,7 +116,15 @@ begin
         and (p_military_filter is distinct from 'yes' or military_obligations_apply is distinct from 'no')
     ),
     'fresh_unsuccessful_count', (select count(distinct id) from classified where klass = 'unsuccessful' and is_fresh),
-    'policy_change', (select to_jsonb(policy.*) from policy)
+    'policy_change', (select to_jsonb(policy.*) from policy),
+    -- Flagged reports: still shown on the page collapsed as "На перевірці", but
+    -- excluded from every count/match above (the `classified` CTE only sees
+    -- moderation_status = 'published' reports).
+    'flagged_count', (
+      select count(*) from reports
+      where location_id = p_location_id and procedure_code = p_procedure_code
+        and moderation_status = 'flagged'
+    )
   ) into v_result;
 
   return v_result;
