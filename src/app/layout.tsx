@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { NavBar } from "@/components/shared/NavBar";
+import { TelegramProvider } from "@/components/telegram/TelegramProvider";
+import { BackButtonBridge } from "@/components/telegram/BackButtonBridge";
 import "./globals.css";
 
 // Deliberately no NextIntlClientProvider here: every page in this app either
@@ -19,8 +21,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="uk" className="h-full">
       <body className="min-h-full flex flex-col bg-white text-zinc-900 antialiased">
-        <NavBar />
-        {children}
+        <TelegramProvider>
+          <BackButtonBridge />
+          <NavBar />
+          {children}
+        </TelegramProvider>
       </body>
     </html>
   );

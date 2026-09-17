@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import type { ProvinceOption } from "@/lib/data/locations";
 import type { DocumentTypeRow } from "@/lib/data/documentTypes";
 import { CHECKLIST_DOCUMENT_CODES } from "@/lib/matching/types";
+import { MainButtonBridge } from "@/components/telegram/MainButtonBridge";
 
 /**
  * Plain server-rendered <form method="get"> — no client JS needed for the
@@ -87,6 +88,7 @@ export async function SearchForm({
         {t("shareCta")}
       </Link>
       <p className="text-xs text-[var(--muted)]">{t("shareCtaHint")}</p>
+      <MainButtonBridge formId="search-form" text={t("searchButton")} />
     </form>
   );
 }

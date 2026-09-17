@@ -6,6 +6,7 @@ import { useForm, Controller } from "react-hook-form";
 import type { DocumentTypeRow } from "@/lib/data/documentTypes";
 import type { DocumentCode, DocumentStatus } from "@/lib/matching/types";
 import { EARLIEST_EVENT_DATE } from "@/lib/validation/reportSchema";
+import { MainButtonBridge } from "@/components/telegram/MainButtonBridge";
 
 type DocState = "" | DocumentStatus;
 
@@ -364,6 +365,7 @@ export function ReportForm({
       >
         {submitting ? labels.submitting : labels.submitButton}
       </button>
+      <MainButtonBridge formId="report-form" text={labels.submitButton} />
     </form>
   );
 }
