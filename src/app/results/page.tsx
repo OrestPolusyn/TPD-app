@@ -67,7 +67,7 @@ export default async function ResultsPage({ searchParams }: ResultsPageProps) {
           {!anyFreshMatches ? (
             <div className="rounded-md border border-[var(--border)] p-3 text-sm">
               <p>{t("noMatchingReports")}</p>
-              <Link href="/reports/new" className="mt-1 inline-block underline">
+              <Link href="/locations" className="mt-1 inline-block underline">
                 {t("addReportCta")}
               </Link>
             </div>

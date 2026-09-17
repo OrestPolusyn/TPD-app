@@ -20,7 +20,7 @@ create table locations (
   verification_status verification_status_t not null,
   notes               text,
   moderation_status   moderation_status_t not null default 'pending',
-  created_by          uuid references profiles(id),
+  created_by          uuid references profiles(id) on delete set null,
   created_at          timestamptz not null default now(),
   updated_at          timestamptz not null default now()
 );

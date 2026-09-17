@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ProvinceOption } from "@/lib/data/locations";
 import type { DocumentTypeRow } from "@/lib/data/documentTypes";
@@ -79,12 +80,12 @@ export async function SearchForm({
         {t("searchButton")}
       </button>
 
-      <a
-        href="/reports/new"
+      <Link
+        href="/locations"
         className="rounded-md border border-[var(--accent)] px-4 py-2 text-center font-medium text-[var(--accent)]"
       >
         {t("shareCta")}
-      </a>
+      </Link>
       <p className="text-xs text-[var(--muted)]">{t("shareCtaHint")}</p>
     </form>
   );

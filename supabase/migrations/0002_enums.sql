@@ -1,5 +1,7 @@
 create type location_type_t         as enum ('creade', 'police_station');
-create type verification_status_t   as enum ('verified', 'official_2022', 'conflict');
+-- 'user_submitted': a location proposed via /locations/new, not yet checked
+-- against any official source. Always paired with moderation_status='pending'.
+create type verification_status_t   as enum ('verified', 'official_2022', 'conflict', 'user_submitted');
 create type appointment_method_t    as enum ('phone', 'email', 'phone_or_email', 'icp_online');
 create type moderation_status_t     as enum ('pending', 'published', 'flagged', 'rejected', 'hidden');
 create type suggestion_status_t     as enum ('pending', 'approved', 'rejected');

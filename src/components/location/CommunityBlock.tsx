@@ -1,7 +1,10 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { LocationPageData, MatchedReport } from "@/lib/matching/types";
 import type { ReportDetail, CommentRow } from "@/lib/data/reports";
 import { OutcomeLabel } from "@/components/shared/OutcomeLabel";
+import { FlagButton } from "@/components/location/FlagButton";
+import { CommentForm } from "@/components/location/CommentForm";
 import { formatDate } from "@/lib/format";
 
 type Translator = Awaited<ReturnType<typeof getTranslations<"location">>>;
@@ -24,11 +27,29 @@ async function ReportCard({
   const tTimeAtOffice = await getTranslations("timeAtOffice");
   const tAppointmentType = await getTranslations("appointmentTypes");
 
+  const tCommon = await getTranslations("common");
+  const flagLabels = {
+    flag: t("flagButton"),
+    confirm: t("flagConfirm"),
+    success: t("flagSuccess"),
+    already: t("flagAlready"),
+    generic: tCommon("errorGeneric"),
+  };
+  const commentLabels = {
+    placeholder: t("addCommentPlaceholder"),
+    submit: tCommon("submit"),
+    submitting: tCommon("submitting"),
+    generic: tCommon("errorGeneric"),
+  };
+
   return (
-    <li className="rounded-md border border-[var(--border)] p-3 text-sm">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <OutcomeLabel outcome={detail.outcome} />
-        <span className="text-[var(--muted)]">{t("reportDate", { date: formatDate(detail.event_date) })}</span>
+    <li id={`report-${detail.id}`} className="rounded-md border border-[var(--border)] p-3 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <OutcomeLabel outcome={detail.outcome} />
+          <span className="text-[var(--muted)]">{t("reportDate", { date: formatDate(detail.event_date) })}</span>
+        </div>
+        <FlagButton targetType="report" targetId={detail.id} labels={flagLabels} />
       </div>
 
       {detail.appointment_type ? <p className="mt-1">{tAppointmentType(detail.appointment_type)}</p> : null}
@@ -56,13 +77,18 @@ async function ReportCard({
           {comments
             .filter((c) => c.moderation_status === "published" || c.moderation_status === "flagged")
             .map((c) => (
-              <li key={c.id} className="text-sm">
-                <span className="whitespace-pre-wrap">{c.body}</span>
-                <span className="ml-2 text-xs text-[var(--muted)]">{t("author")}</span>
+              <li key={c.id} className="flex items-start justify-between gap-2 text-sm">
+                <span>
+                  <span className="whitespace-pre-wrap">{c.body}</span>
+                  <span className="ml-2 text-xs text-[var(--muted)]">{t("author")}</span>
+                </span>
+                <FlagButton targetType="comment" targetId={c.id} labels={flagLabels} />
               </li>
             ))}
         </ul>
       ) : null}
+
+      <CommentForm reportId={detail.id} labels={commentLabels} />
     </li>
   );
 }
@@ -127,15 +153,15 @@ export async function CommunityBlock({
       ) : null}
 
       <div className="flex gap-3 text-sm">
-        <a href={`/reports/new?location=${locationId}`} className="rounded-md border border-[var(--border)] px-3 py-1.5 font-medium">
+        <Link href={`/reports/new?location=${locationId}`} className="rounded-md border border-[var(--border)] px-3 py-1.5 font-medium">
           {t("sameExperienceButton")}
-        </a>
-        <a href={`/reports/new?location=${locationId}`} className="rounded-md border border-[var(--border)] px-3 py-1.5 font-medium">
+        </Link>
+        <Link href={`/reports/new?location=${locationId}`} className="rounded-md border border-[var(--border)] px-3 py-1.5 font-medium">
           {t("differentExperienceButton")}
-        </a>
-        <a href={`/locations/${locationId}/suggest`} className="underline self-center">
+        </Link>
+        <Link href={`/locations/${locationId}/suggest`} className="underline self-center">
           {t("suggestEditButton")}
-        </a>
+        </Link>
       </div>
 
       {matches.length > 0 ? (
