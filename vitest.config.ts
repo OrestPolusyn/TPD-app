@@ -4,7 +4,8 @@ import path from "node:path";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
+    include: ["src/**/*.test.ts"],
+    exclude: ["tests/db/**"], // separate npm script: `npm run test:db` (needs a live Postgres)
   },
   resolve: {
     alias: {
