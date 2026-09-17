@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #17181c;
+  --accent: #2f6fed;
+  --accent-contrast: #ffffff;
+  --border: #d8dbe0;
+  --muted: #5b6270;
+  --highlight-bg: #fff4d6;
+  --highlight-border: #e8b93b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #121316;
+    --foreground: #f2f3f5;
+    --border: #34363c;
+    --muted: #a3a9b3;
+    --highlight-bg: #3a331a;
+    --highlight-border: #cb9a2c;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Telegram Mini App theme override: TelegramProvider sets these on :root when
+   window.Telegram.WebApp.themeParams is available, taking priority over the
+   prefers-color-scheme media query above. */
+:root[data-tg-theme="dark"] {
+  --background: #17212b;
+  --foreground: #f5f5f5;
+}
+:root[data-tg-theme="light"] {
+  --background: #ffffff;
+  --foreground: #222222;
+}
