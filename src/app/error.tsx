@@ -30,6 +30,21 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
       >
         {messages.common.retry}
       </button>
+
+      {/* Collapsed by default, so the spec's "no raw error text" holds for
+          ordinary visitors — but a production failure is otherwise invisible
+          without devtools. React strips the message for server errors and
+          gives only `digest`, which matches the Vercel log line. */}
+      {error.digest || error.message ? (
+        <details className="w-full text-xs text-[var(--muted)]">
+          <summary className="cursor-pointer">{messages.common.errorDetails}</summary>
+          <p className="mt-1 break-all font-mono">
+            {error.digest ? `digest: ${error.digest}` : null}
+            {error.digest && error.message ? " — " : null}
+            {error.message}
+          </p>
+        </details>
+      ) : null}
     </div>
   );
 }
