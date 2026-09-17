@@ -71,6 +71,8 @@
     "officialSourceCreade": "Поточна сторінка MISSM",
     "officialSourceOfficial2022": "Офіційний список МВС, оновлено 03/2022",
     "officialSourceConflict": "Суперечливі офіційні джерела — на перевірці",
+    "sourceLabel": "Джерело",
+    "verifiedAtLabel": "Дата перевірки",
     "verificationConflictNotice": "Офіційні джерела суперечать одне одному щодо цієї локації. Дані показані нижче можуть бути неточними.",
     "addressLabel": "Адреса",
     "addressUnknown": "адреса не вказана в офіційному списку",
