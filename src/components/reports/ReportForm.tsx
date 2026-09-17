@@ -180,7 +180,7 @@ export function ReportForm({
         ) : null}
       </div>
 
-      <fieldset>
+      <fieldset aria-describedby={errors.outcome ? `${idPrefix}-outcome-error` : undefined}>
         <legend className="mb-1 text-sm font-medium">{labels.outcomeLabel}</legend>
         <div className="flex flex-col gap-1">
           {OUTCOMES.map((o) => (
@@ -191,7 +191,7 @@ export function ReportForm({
           ))}
         </div>
         {errors.outcome ? (
-          <p role="alert" className="mt-1 text-sm text-red-600">
+          <p id={`${idPrefix}-outcome-error`} role="alert" className="mt-1 text-sm text-red-600">
             {labels.outcomeRequired}
           </p>
         ) : null}
@@ -282,7 +282,7 @@ export function ReportForm({
         />
       </div>
 
-      <fieldset>
+      <fieldset aria-describedby={errors.requested_list_complete ? `${idPrefix}-rlc-error` : undefined}>
         <legend className="mb-1 text-sm font-medium">{labels.requestedListCompleteLabel}</legend>
         <div className="flex gap-4 text-sm">
           <label className="flex items-center gap-1">
@@ -295,7 +295,7 @@ export function ReportForm({
           </label>
         </div>
         {errors.requested_list_complete ? (
-          <p role="alert" className="mt-1 text-sm text-red-600">
+          <p id={`${idPrefix}-rlc-error`} role="alert" className="mt-1 text-sm text-red-600">
             {labels.requestedListCompleteRequired}
           </p>
         ) : null}
