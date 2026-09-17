@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { NavBar } from "@/components/shared/NavBar";
 import { TelegramProvider } from "@/components/telegram/TelegramProvider";
 import { BackButtonBridge } from "@/components/telegram/BackButtonBridge";
@@ -12,10 +13,13 @@ import "./globals.css";
 // runtime onto every route just to carry translation context nothing needs,
 // which is what pushed "/"'s first-load JS over the 150 KB budget.
 
-export const metadata: Metadata = {
-  title: "TP Spain",
-  description: "Тимчасовий захист в Іспанії: офіційні локації та досвід спільноти.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("meta");
+  return {
+    title: "TP Spain",
+    description: t("description"),
+  };
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

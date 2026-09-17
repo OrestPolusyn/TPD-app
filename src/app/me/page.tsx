@@ -13,6 +13,13 @@ export default async function MePage() {
   const tMe = await getTranslations("me");
   const tCommon = await getTranslations("common");
   const tOutcomes = await getTranslations("outcomes");
+  const tSuggest = await getTranslations("suggestForm");
+  const suggestionFieldLabels: Record<string, string> = {
+    address: tSuggest("fieldAddress"),
+    postal_code: tSuggest("fieldPostalCode"),
+    phone: tSuggest("fieldPhone"),
+    appointment_url: tSuggest("fieldAppointmentUrl"),
+  };
   const supabase = await createClient();
   const {
     data: { user },
@@ -97,7 +104,7 @@ export default async function MePage() {
             {suggestions.map((s) => (
               <li key={s.id} className="rounded-md border border-[var(--border)] p-2">
                 <p>
-                  {s.field}: <span className="line-through">{s.current_value ?? "—"}</span> → {s.proposed_value}
+                  {suggestionFieldLabels[s.field] ?? s.field}: <span className="line-through">{s.current_value ?? "—"}</span> → {s.proposed_value}
                 </p>
                 <span className="text-xs text-[var(--muted)]">{tMe(`moderationStatus.${s.status}`)}</span>
               </li>

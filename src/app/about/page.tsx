@@ -28,7 +28,7 @@ export default async function AboutPage() {
         <ul className="list-inside list-disc text-sm">
           <li>
             <a href="https://www.interior.gob.es" target="_blank" rel="noopener noreferrer" className="underline">
-              Ministerio del Interior (España)
+              {t("sourceInteriorMinistry")}
             </a>
           </li>
           {officialInfoUrl ? (

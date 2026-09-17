@@ -1,4 +1,7 @@
 {
+  "meta": {
+    "description": "Тимчасовий захист в Іспанії: офіційні локації та досвід спільноти."
+  },
   "common": {
     "appName": "TP Spain",
     "disclaimer": "Досвід спільноти, не юридична консультація",
@@ -66,6 +69,7 @@
     "provinceGroupTitle": "{province}"
   },
   "location": {
+    "ogDescription": "{city}, {province}. Досвід спільноти щодо тимчасового захисту.",
     "officialBlockTitle": "Офіційна інформація",
     "officialSourceLabel": "Джерело: {source}, дата: {date}",
     "officialSourceCreade": "Поточна сторінка MISSM",
@@ -239,6 +243,7 @@
     "disclaimerTitle": "Важливо розуміти",
     "disclaimerBody": "Цей сайт збирає досвід спільноти — це не юридична консультація і не гарантія того, що вас прийме конкретна локація.",
     "sourcesTitle": "Джерела офіційних даних",
+    "sourceInteriorMinistry": "Ministerio del Interior (España)",
     "legalNoticeTitle": "Юридичні нюанси"
   },
   "privacy": {

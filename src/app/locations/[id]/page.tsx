@@ -28,7 +28,10 @@ export async function generateMetadata({ params }: LocationPageProps): Promise<M
     return { title: "TP Spain" };
   }
   const title = `${location.name} — TP Spain`;
-  const description = `${location.city}, ${location.province}. Досвід спільноти щодо тимчасового захисту.`;
+  const description = (await getTranslations("location"))("ogDescription", {
+    city: location.city,
+    province: location.province,
+  });
   const url = `${config.siteUrl()}/locations/${location.id}`;
   return {
     title,
