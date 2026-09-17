@@ -23,7 +23,10 @@ npm install
    locally with the Supabase CLI — see "Local development" below).
 2. Copy `.env.example` to `.env.local` and fill in:
    - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
-     `SUPABASE_SERVICE_ROLE_KEY` — from Project Settings → API.
+     `SUPABASE_SERVICE_ROLE_KEY` — from Project Settings → **API Keys**
+     (Supabase is retiring the old "anon"/"service_role" JWT pair for
+     "Publishable"/"Secret" keys — see the comment in `.env.example` for
+     which goes where; the variable names here don't change either way).
 3. Apply the migrations in order (`supabase/migrations/0001_*.sql` through
    `0008_*.sql`) — via the Supabase CLI (`supabase db push`, once the project
    is linked) or by pasting each file into the SQL Editor in the dashboard,
