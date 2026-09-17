@@ -6,6 +6,7 @@ import { getActiveDocumentTypes } from "@/lib/data/documentTypes";
 import { SearchForm } from "@/components/search/SearchForm";
 import { Card } from "@/components/shared/Card";
 import { LocationsMapLoader } from "@/components/home/LocationsMapLoader";
+import { ClientErrorBoundary } from "@/components/shared/ClientErrorBoundary";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,15 @@ export default async function HomePage() {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <div className="flex min-h-[320px] flex-col gap-2">
           <h2 className="font-medium">{t("mapSectionTitle")}</h2>
-          <LocationsMapLoader locations={mapLocations} openLocationLabel={tResults("card.openLocation")} />
+          <ClientErrorBoundary
+            fallback={
+              <div className="flex min-h-[320px] items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-center text-sm text-[var(--muted)]">
+                {t("mapUnavailable")}
+              </div>
+            }
+          >
+            <LocationsMapLoader locations={mapLocations} openLocationLabel={tResults("card.openLocation")} />
+          </ClientErrorBoundary>
           <p className="text-xs text-[var(--muted)]">{t("mapCaption")}</p>
         </div>
         <div className="flex flex-col gap-3">

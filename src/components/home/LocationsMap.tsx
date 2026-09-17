@@ -9,14 +9,26 @@ import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import { CITY_COORDINATES } from "@/lib/data/cityCoordinates";
 
+/**
+ * Next's type declarations describe an image import as `StaticImageData`, but
+ * Turbopack hands back the URL string directly. Reading `.src` off that string
+ * yielded `undefined`, so Leaflet threw "iconUrl not set in Icon options" on
+ * every marker and took the whole home page down with it — and TypeScript
+ * could not catch it, because the declared type says `.src` exists. Accept
+ * both shapes instead of trusting either.
+ */
+function assetUrl(asset: unknown): string {
+  return typeof asset === "string" ? asset : (asset as { src: string }).src;
+}
+
 // Leaflet resolves its default marker icons via relative CSS paths that don't
 // survive bundling — re-point them at the bundler's own hashed asset URLs so
 // markers render without depending on an external CDN.
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x.src,
-  iconUrl: markerIcon.src,
-  shadowUrl: markerShadow.src,
+  iconRetinaUrl: assetUrl(markerIcon2x),
+  iconUrl: assetUrl(markerIcon),
+  shadowUrl: assetUrl(markerShadow),
 });
 
 const SPAIN_CENTER: [number, number] = [40.2, -3.7];
