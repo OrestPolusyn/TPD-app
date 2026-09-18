@@ -92,6 +92,12 @@
     "officePlaceholder": "Оберіть офіс"
   },
   "location": {
+    "procedureTitle": "Тимчасовий захист",
+    "procedureIntroCreade": "Тут подають заяву на тимчасовий захист. CREADE — центр прийому, де заяву оформлюють на місці.",
+    "procedureIntroPolice": "Тут подають заяву на тимчасовий захист. Це відділок Національної поліції — прийом лише за попереднім записом, спосіб запису вказано нижче.",
+    "procedureOfficialNote": "Умови, перебіг процедури та перелік документів визначає іспанська влада — звіряйтеся з офіційним джерелом. Нижче на цій сторінці — лише досвід інших людей, а не офіційні вимоги.",
+    "procedureOfficialCta": "Офіційна інформація про процедуру",
+    "procedureFaqCta": "Часті питання",
     "ogDescription": "{city}, {province}. Досвід спільноти щодо тимчасового захисту.",
     "officialBlockTitle": "Офіційна інформація",
     "officialSourceLabel": "Джерело: {source}, дата: {date}",
@@ -118,8 +124,6 @@
     "notRequestedLine": "Не просили: {label} ({count, plural, one {# звіт} other {# звітів}})",
     "notRequestedMilitaryLine": "Не просили (у людей, яких стосуються військові обов'язки): {label} ({count, plural, one {# звіт} other {# звітів}})",
     "flaggedLabel": "На перевірці",
-    "sameExperienceButton": "У мене так само",
-    "differentExperienceButton": "У мене інакше",
     "flagButton": "Поскаржитись",
     "flagConfirm": "Повідомити модератору про цей запис?",
     "flagSuccess": "Дякуємо, ми отримали скаргу.",
@@ -136,7 +140,9 @@
     "reportEarliestAppointment": "Найближчий запис: {date}",
     "reportRequestedDocs": "Просили: {docs}",
     "reportMissingDocs": "Просили, але не було: {docs}",
-    "author": "Користувач"
+    "author": "Користувач",
+    "noReportsYet": "Про цю локацію ще ніхто не розповідав. Якщо ви тут були — ваш звіт буде першим.",
+    "shareExperienceButton": "Розповісти про свій досвід"
   },
   "outcomes": {
     "protection_granted": "Захист надано",

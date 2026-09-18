@@ -120,6 +120,8 @@ export async function CommunityBlock({
   const incomplete = detailsFor(data.incomplete);
   const moreDocs = detailsFor(data.more_docs);
   const unsuccessful = detailsFor(data.unsuccessful);
+  const hasReports =
+    matches.length + incomplete.length + moreDocs.length + unsuccessful.length + flaggedReports.length > 0;
 
   return (
     <section className="flex flex-col gap-4">
@@ -152,14 +154,19 @@ export async function CommunityBlock({
         </div>
       ) : null}
 
-      <div className="flex gap-3 text-sm">
-        <Link href={`/reports/new?location=${locationId}`} className="rounded-md border border-[var(--border)] px-3 py-1.5 font-medium">
-          {t("sameExperienceButton")}
+      {/* There used to be "У мене так само" / "У мене інакше" here. Both linked
+          to the same form, and with no reports on the page there was nothing to
+          be the same as — readers asked what "так само" referred to. */}
+      {hasReports ? null : <p className="text-sm text-[var(--muted)]">{t("noReportsYet")}</p>}
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+        <Link
+          href={`/reports/new?location=${locationId}`}
+          className="rounded-full border border-[var(--accent)] px-3 py-1.5 font-medium text-[var(--accent)] no-underline transition-colors hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]"
+        >
+          {t("shareExperienceButton")}
         </Link>
-        <Link href={`/reports/new?location=${locationId}`} className="rounded-md border border-[var(--border)] px-3 py-1.5 font-medium">
-          {t("differentExperienceButton")}
-        </Link>
-        <Link href={`/locations/${locationId}/suggest`} className="underline self-center">
+        <Link href={`/locations/${locationId}/suggest`} className="underline">
           {t("suggestEditButton")}
         </Link>
       </div>

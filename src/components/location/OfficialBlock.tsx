@@ -62,22 +62,18 @@ export async function OfficialBlock({ location }: { location: LocationRow }) {
             ) : null}
           </dd>
         </div>
-        <div>
-          <dt className="text-[var(--muted)]">{t("sourceLabel")}</dt>
-          <dd>
-            {officialSourceLabel(t, location)}
-            {location.source_date ? ` (${location.source_date})` : ""}
-            {" — "}
-            <a href={location.source_url} className="underline" target="_blank" rel="noopener noreferrer">
-              {t("officialBlockTitle")}
-            </a>
-          </dd>
-        </div>
-        <div>
-          <dt className="text-[var(--muted)]">{t("verifiedAtLabel")}</dt>
-          <dd>{formatDate(location.verified_at)}</dd>
-        </div>
       </dl>
+
+      <p className="mt-3 border-t border-[var(--border)] pt-2 text-xs text-[var(--muted)]">
+        {officialSourceLabel(t, location)}
+        {location.source_date ? ` (${location.source_date})` : ""}
+        {" · "}
+        {t("verifiedAtLabel")}: {formatDate(location.verified_at)}
+        {" · "}
+        <a href={location.source_url} className="underline" target="_blank" rel="noopener noreferrer">
+          {t("sourceLabel")}
+        </a>
+      </p>
     </section>
   );
 }

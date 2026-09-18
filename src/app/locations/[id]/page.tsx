@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getLocationById } from "@/lib/data/locations";
 import { getFlaggedReportsForLocation, getReportDetails, getCommentsForReports } from "@/lib/data/reports";
 import { getActiveDocumentTypes } from "@/lib/data/documentTypes";
+import { ProcedureBlock } from "@/components/location/ProcedureBlock";
 import { OfficialBlock } from "@/components/location/OfficialBlock";
 import { CommunityBlock } from "@/components/location/CommunityBlock";
 import { ShareActions } from "@/components/location/ShareActions";
@@ -99,6 +100,7 @@ export default async function LocationPage({ params, searchParams }: LocationPag
           openTelegram: tShare("shareOpenTelegram"),
         }}
       />
+      <ProcedureBlock location={location} />
       <OfficialBlock location={location} />
       <CommunityBlock
         locationId={location.id}
