@@ -85,7 +85,12 @@ export async function GET() {
 
   // supabase-js reports a network-level failure as an empty message, so probe
   // the REST endpoint directly too: the HTTP status separates "unreachable"
-  // from "wrong key" (401) and "wrong URL path" (404).
+  // from "wrong URL path" (404).
+  //
+  // A 401 here is NOT a bad key. PostgREST's root needs an Authorization
+  // header, which this probe deliberately omits, so a correctly configured
+  // project answers 401. `supabase.ok` above is the real key check — it ran an
+  // actual query. Read the two together, never restProbe alone.
   let restProbe: { status: number | null; error: string | null } = { status: null, error: null };
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (rawUrl && anonKey) {
