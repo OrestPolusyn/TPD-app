@@ -36,6 +36,31 @@ typically separate bots so you can test without disturbing real users).
 
 ## 4. Configure `/start`
 
+**This repo now ships the bot.** `src/app/api/telegram/webhook/route.ts` answers
+`/start` and `/help` with an inline button that opens the app — as a `web_app`
+button when `NEXT_PUBLIC_TELEGRAM_MINI_APP_NAME` is set, otherwise as a plain
+link, so the bot is useful before the Mini App exists. It is a webhook, not a
+long-running process: Telegram POSTs, the function answers, it ends.
+
+Register it once per environment:
+
+```
+TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=... \
+NEXT_PUBLIC_SITE_URL=https://your-host npm run telegram:setup
+```
+
+It prints **which bot the token belongs to** before doing anything else — start
+here whenever a login fails, because that bot must be the same one that owns the
+Mini App and that you ran `/setdomain` on. Then it calls `setWebhook` (with the
+secret), `setMyCommands`, and prints `getWebhookInfo`.
+
+`TELEGRAM_WEBHOOK_SECRET` must be set on the host too: Telegram echoes it in
+`X-Telegram-Bot-Api-Secret-Token`, and the route rejects anything else, so
+nobody who guesses the URL can make the bot speak.
+
+<details>
+<summary>The previous manual approach, for reference</summary>
+
 The bot needs no conversational logic (docs/SPEC.md "Bot" — out of scope:
 broadcasts, notifications, follow-ups). Only `/start` needs a reply with an
 "Open app" inline button:
@@ -55,6 +80,8 @@ broadcasts, notifications, follow-ups). Only `/start` needs a reply with an
    `sendMessage` with a `reply_markup.inline_keyboard` containing one
    `{ text: "Open app", web_app: { url: NEXT_PUBLIC_SITE_URL } }` button, and
    register it with `setWebhook`.
+
+</details>
 
 ## 5. Enable the Login Widget (web)
 
@@ -79,6 +106,26 @@ whose **domain** has been linked to it:
       (not inside Telegram) and completes a login.
 
 ## Troubleshooting
+
+### Every login fails, or the Mini App shows "Telegram не підтвердив підпис"
+
+One bot's Mini App with another bot's token on the server. `initData` is signed
+with the bot token, so the HMAC check fails with `bad_hash` and no amount of
+`/setdomain` helps.
+
+Open `/api/health` and compare:
+
+```json
+"telegram": {
+  "botUsername": "…",        // NEXT_PUBLIC_TELEGRAM_BOT_USERNAME
+  "tokenBelongsTo": "…",     // who TELEGRAM_BOT_TOKEN really is, via getMe
+  "botMatchesToken": false   // <- the answer
+}
+```
+
+All four must be one bot: the token, the public username, the `/setdomain`
+target, and the bot whose Mini App you open. `npm run telegram:setup` prints the
+same identity from the command line.
 
 ### "Bot domain invalid" on the Login Widget
 

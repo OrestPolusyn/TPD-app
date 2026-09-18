@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getMe } from "@/lib/telegram/api";
 
 export const dynamic = "force-dynamic";
 
@@ -51,8 +52,33 @@ export async function GET() {
   } catch {
     siteUrlHost = null;
   }
+  // Ask Telegram which bot TELEGRAM_BOT_TOKEN belongs to. When that differs
+  // from NEXT_PUBLIC_TELEGRAM_BOT_USERNAME, every Mini App login fails its HMAC
+  // check with `bad_hash` and the Login Widget signs people into the wrong bot —
+  // the single most expensive misconfiguration on this project, and invisible
+  // until now. Nothing secret is printed: a bot's username is public.
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const configuredUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME?.trim().replace(/^@+/, "") || null;
+  let tokenBelongsTo: string | null = null;
+  let tokenError: string | null = null;
+  if (botToken) {
+    try {
+      tokenBelongsTo = (await getMe(botToken))?.username ?? null;
+      if (!tokenBelongsTo) tokenError = "getMe rejected the token";
+    } catch (err) {
+      tokenError = err instanceof Error ? err.message : String(err);
+    }
+  }
+
   const telegram = {
-    botUsername: process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || null,
+    botUsername: configuredUsername,
+    tokenBelongsTo,
+    tokenError,
+    /** false here explains a `bad_hash` login failure on its own. */
+    botMatchesToken:
+      configuredUsername && tokenBelongsTo
+        ? configuredUsername.toLowerCase() === tokenBelongsTo.toLowerCase()
+        : null,
     miniAppName: process.env.NEXT_PUBLIC_TELEGRAM_MINI_APP_NAME || null,
     siteUrlHost,
     setdomainShouldBe: siteUrlHost,
