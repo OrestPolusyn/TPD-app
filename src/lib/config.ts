@@ -6,12 +6,22 @@ function required(name: string): string {
   return value;
 }
 
+/**
+ * BotFather prints the username as "@my_bot" and it is easy to paste that, or a
+ * stray space, into the deploy env. The Login Widget takes a bare username in
+ * `data-telegram-login`, so normalise here rather than trusting the variable.
+ */
+function normalizeBotUsername(raw: string | undefined): string | null {
+  const value = raw?.trim().replace(/^@+/, "") ?? "";
+  return value === "" ? null : value;
+}
+
 export const config = {
   supabaseUrl: () => required("NEXT_PUBLIC_SUPABASE_URL"),
   supabaseAnonKey: () => required("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
   siteUrl: () => process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
   officialInfoUrl: () => process.env.OFFICIAL_INFO_URL ?? null,
-  telegramBotUsername: () => process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? null,
+  telegramBotUsername: () => normalizeBotUsername(process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME),
   telegramMiniAppName: () => process.env.NEXT_PUBLIC_TELEGRAM_MINI_APP_NAME ?? null,
   devLoginEnabled: () => process.env.NODE_ENV !== "production" && process.env.DEV_LOGIN_ENABLED === "true",
 };

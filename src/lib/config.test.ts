@@ -30,3 +30,23 @@ describe("config.devLoginEnabled", () => {
     expect(config.devLoginEnabled()).toBe(true);
   });
 });
+
+describe("config.telegramBotUsername", () => {
+  const original = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME;
+  afterEach(() => {
+    if (original === undefined) delete process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME;
+    else process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME = original;
+  });
+
+  it("strips the @ BotFather shows and any stray whitespace", () => {
+    process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME = "  @tp_spain_bot ";
+    expect(config.telegramBotUsername()).toBe("tp_spain_bot");
+  });
+
+  it("treats unset and blank alike, so the widget is not rendered for an empty value", () => {
+    delete process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME;
+    expect(config.telegramBotUsername()).toBeNull();
+    process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME = "   ";
+    expect(config.telegramBotUsername()).toBeNull();
+  });
+});
