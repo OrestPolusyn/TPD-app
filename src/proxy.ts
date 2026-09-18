@@ -7,6 +7,17 @@ import { NextResponse, type NextRequest } from "next/server";
 // always see a valid (non-expired) session.
 // https://supabase.com/docs/guides/auth/server-side/nextjs
 export async function proxy(request: NextRequest) {
+  // Legacy shape from the old two-step /locations picker, whose step-2 form
+  // submitted ?province=…&office=<id>. Handled here rather than in the page so
+  // it stays a real 307: /locations now has a loading.tsx, so a redirect() in
+  // the page happens after the fallback has already streamed with a 200.
+  if (request.nextUrl.pathname === "/locations") {
+    const office = request.nextUrl.searchParams.get("office");
+    if (office) {
+      return NextResponse.redirect(new URL(`/locations/${encodeURIComponent(office)}`, request.url));
+    }
+  }
+
   let response = NextResponse.next({ request });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

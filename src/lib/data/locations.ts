@@ -48,6 +48,41 @@ export async function getPublishedLocationsGroupedByProvince(
   return grouped;
 }
 
+export interface ProvinceGroup {
+  province: string;
+  provinceSlug: string;
+  region: string;
+  offices: Pick<LocationRow, "id" | "name" | "city" | "type" | "address">[];
+}
+
+/**
+ * Flattens the province->offices Map into the shape /locations renders: one
+ * group per province, alphabetised the Spanish way, carrying only the fields
+ * the list shows.
+ *
+ * Derives `provinceSlug`/`region` from the group's own rows rather than joining
+ * against getProvinces(): the offices are the source of truth, so a province
+ * can never appear with an empty office list — which is what made the old
+ * two-step picker look broken after a province was chosen.
+ */
+export function toProvinceGroups(grouped: Map<string, LocationRow[]>): ProvinceGroup[] {
+  return [...grouped.entries()]
+    .filter(([, offices]) => offices.length > 0)
+    .map(([province, offices]) => ({
+      province,
+      provinceSlug: offices[0].province_slug,
+      region: offices[0].region,
+      offices: offices.map((office) => ({
+        id: office.id,
+        name: office.name,
+        city: office.city,
+        type: office.type,
+        address: office.address,
+      })),
+    }))
+    .sort((a, b) => a.province.localeCompare(b.province, "es"));
+}
+
 export async function getLocationById(
   supabase: SupabaseClient,
   id: string

@@ -52,7 +52,11 @@ export function LocationsMap({ locations, openLocationLabel }: { locations: MapL
       center={SPAIN_CENTER}
       zoom={6}
       scrollWheelZoom={false}
-      className="h-full min-h-[320px] w-full rounded-xl"
+      // `isolate` makes this a stacking context, so Leaflet's own ladder
+      // (.leaflet-tile-pane 200 … .leaflet-top/.leaflet-bottom 1000) resolves
+      // inside the map instead of in the root context, where it painted over
+      // the sticky header.
+      className="isolate h-full min-h-[320px] w-full rounded-xl"
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

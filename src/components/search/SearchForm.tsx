@@ -1,15 +1,21 @@
+import Form from "next/form";
 import { getTranslations } from "next-intl/server";
 import type { ProvinceOption } from "@/lib/data/locations";
 import type { DocumentTypeRow } from "@/lib/data/documentTypes";
 import { CHECKLIST_DOCUMENT_CODES } from "@/lib/matching/types";
 import { MainButtonBridge } from "@/components/telegram/MainButtonBridge";
+import { SubmitButton } from "@/components/search/SubmitButton";
 
 /**
- * Plain server-rendered <form method="get"> — no client JS needed for the
- * core interaction (native checkboxes/select/radio + browser navigation).
- * Keeps "/" well under the 150 KB gzipped client-JS budget and makes the
- * search trivially keyboard/no-JS accessible. The Telegram MainButton bridge
- * (Milestone 6) hooks into this same <form> via its id, it does not replace it.
+ * Server-rendered GET form. The inputs stay native (select/checkbox/radio), so
+ * it remains keyboard- and no-JS-accessible and "/" stays inside the 150 KB
+ * gzipped client-JS budget. The Telegram MainButton bridge (Milestone 6) hooks
+ * into this same form via its id, it does not replace it.
+ *
+ * next/form rather than a bare <form>: it prefetches /results (including its
+ * loading.tsx) and submits as a client-side navigation, so the skeleton appears
+ * immediately instead of the page sitting frozen while fn_search_results runs.
+ * It degrades to a normal GET submit without JS.
  */
 export async function SearchForm({
   provinces,
@@ -22,7 +28,7 @@ export async function SearchForm({
   const checklist = documentTypes.filter((d) => (CHECKLIST_DOCUMENT_CODES as readonly string[]).includes(d.code));
 
   return (
-    <form id="search-form" action="/results" method="get" className="flex flex-col gap-5">
+    <Form id="search-form" action="/results" className="flex flex-col gap-5">
       <div>
         <label htmlFor="province" className="mb-1 block text-sm font-medium">
           {t("provinceLabel")}
@@ -74,14 +80,13 @@ export async function SearchForm({
         </div>
       </fieldset>
 
-      <button
-        type="submit"
+      <SubmitButton
+        label={t("searchButton")}
+        pendingLabel={t("searchingLabel")}
         className="rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-[var(--accent-contrast)]"
-      >
-        {t("searchButton")}
-      </button>
+      />
 
       <MainButtonBridge formId="search-form" text={t("searchButton")} />
-    </form>
+    </Form>
   );
 }

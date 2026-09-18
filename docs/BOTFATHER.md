@@ -77,3 +77,32 @@ whose **domain** has been linked to it:
       lands on that location's page inside the Mini App.
 - [ ] The Login Widget renders on `/me` when viewed in a normal browser
       (not inside Telegram) and completes a login.
+
+## Troubleshooting
+
+### "Bot domain invalid" on the Login Widget
+
+The widget script itself loaded and knows the bot, so `TELEGRAM_BOT_TOKEN` and
+`NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` are fine. The error means Telegram has no
+domain linked to this bot that matches the page serving the widget — i.e.
+**step 5 has not been run for this deployment's host**.
+
+Fix: `/setdomain` in @BotFather → pick the bot → send the bare host, with no
+scheme, no path and no trailing slash (`tpd-app.vercel.app`, not
+`https://tpd-app.vercel.app/`). Telegram matches the host exactly, so:
+
+- a preview deployment (`tpd-app-git-<branch>-<org>.vercel.app`) is a
+  *different* host and will keep failing — test the login on the production
+  host, or point `/setdomain` at the preview host while testing;
+- one bot holds one domain. A separate dev bot is the clean way to have both.
+
+Then confirm the rest of the wiring with `/api/health`, which reports whether
+each variable is present (never its value):
+
+```
+curl -s https://<host>/api/health | jq '.env'
+```
+
+`NEXT_PUBLIC_SITE_URL` must equal `https://<that same host>` — no code path
+reads it during login, but keeping it in sync is what makes the Mini App URL,
+the menu button and `/setdomain` agree.

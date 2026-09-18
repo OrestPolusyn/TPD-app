@@ -43,6 +43,7 @@
     "militaryOptionNo": "Ні",
     "militaryOptionPreferNotToSay": "Не хочу відповідати",
     "searchButton": "Знайти",
+    "searchingLabel": "Шукаємо…",
     "shareCta": "Поділитися своїм досвідом",
     "shareCtaHint": "Якщо ви вже подавали заяву — розкажіть, як це було.",
     "mapCaption": "Приблизне розташування (рівень міста) — не точна адреса офісу.",
@@ -78,16 +79,17 @@
   },
   "locations": {
     "title": "Усі локації",
-    "provinceGroupTitle": "{province}",
-    "intro": "Оберіть провінцію, а потім конкретний офіс — так само, як на офіційному сайті запису.",
+    "intro": "Усі офіси на одному екрані. Скористайтеся пошуком або розгорніть провінцію.",
+    "searchLabel": "Пошук офісу",
+    "searchPlaceholder": "Провінція, місто або назва офісу",
+    "noMatches": "За цим запитом нічого не знайдено. Спробуйте назву провінції або міста.",
+    "typeCreade": "CREADE",
+    "typePoliceStation": "Поліція",
+    "officeCount": "{count, plural, one {# локація} few {# локації} many {# локацій} other {# локації}}",
     "provinceLabel": "Провінція",
     "provincePlaceholder": "Оберіть провінцію",
-    "provinceGoButton": "Далі",
     "officeLabel": "Офіс",
-    "officePlaceholder": "Оберіть офіс",
-    "officeGoButton": "Перейти",
-    "changeProvinceLink": "← Змінити провінцію",
-    "officeCount": "{count, plural, one {# локація} few {# локації} many {# локацій} other {# локації}}"
+    "officePlaceholder": "Оберіть офіс"
   },
   "location": {
     "ogDescription": "{city}, {province}. Досвід спільноти щодо тимчасового захисту.",
@@ -286,6 +288,9 @@
   },
   "faq": {
     "title": "Питання та відповіді",
+    "searchLabel": "Пошук у питаннях",
+    "searchPlaceholder": "Наприклад: Telegram, модерація, дані",
+    "noMatches": "За цим запитом нічого не знайдено. Спробуйте інше слово.",
     "items": [
       {
         "q": "Що це за сайт?",

@@ -10,13 +10,15 @@ export async function NavBar() {
   const links = [
     { href: "/locations", label: t("locations") },
     { href: "/faq", label: t("faq") },
-    { href: "/about", label: t("about") },
-    { href: "/privacy", label: t("privacy") },
     { href: "/me", label: t("me") },
   ];
 
   return (
-    <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--background)]/95 px-4 py-3 backdrop-blur sm:px-6">
+    // z-[1100] clears Leaflet's own ladder (panes 200-700, controls 800,
+    // .leaflet-top/.leaflet-bottom 1000). The map wrapper on "/" also isolates
+    // that ladder, but the header should not depend on every future map-like
+    // widget remembering to do so — it used to render *under* the map tiles.
+    <header className="sticky top-0 z-[1100] border-b border-[var(--border)] bg-[var(--background)]/95 px-4 py-3 backdrop-blur sm:px-6">
       <div className="mx-auto flex w-full max-w-2xl items-center justify-between">
         <Link href="/" className="text-base font-semibold tracking-tight no-underline">
           TP Spain

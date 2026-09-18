@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getProvinces, getPublishedLocationsGroupedByProvince } from "@/lib/data/locations";
@@ -7,19 +8,38 @@ import { SearchForm } from "@/components/search/SearchForm";
 import { Card } from "@/components/shared/Card";
 import { LocationsMapLoader } from "@/components/home/LocationsMapLoader";
 import { ClientErrorBoundary } from "@/components/shared/ClientErrorBoundary";
+import { LoadingIndicator } from "@/components/shared/LoadingIndicator";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * The map and the search form each own their Supabase queries behind their own
+ * <Suspense> boundary, so the headings and the "share your experience" card
+ * paint immediately and each half fills in on its own. Previously the page
+ * awaited all three queries before returning any markup, which on a phone
+ * looked like a dead tap.
+ */
+async function MapSection({ openLocationLabel }: { openLocationLabel: string }) {
+  const supabase = await createClient();
+  const grouped = await getPublishedLocationsGroupedByProvince(supabase);
+  const mapLocations = [...grouped.values()].flat().map((l) => ({ id: l.id, name: l.name, city: l.city }));
+
+  return <LocationsMapLoader locations={mapLocations} openLocationLabel={openLocationLabel} />;
+}
+
+async function SearchSection() {
+  const supabase = await createClient();
+  const [provinces, documentTypes] = await Promise.all([
+    getProvinces(supabase),
+    getActiveDocumentTypes(supabase),
+  ]);
+
+  return <SearchForm provinces={provinces} documentTypes={documentTypes} />;
+}
 
 export default async function HomePage() {
   const t = await getTranslations("home");
   const tResults = await getTranslations("results");
-  const supabase = await createClient();
-  const [provinces, documentTypes, grouped] = await Promise.all([
-    getProvinces(supabase),
-    getActiveDocumentTypes(supabase),
-    getPublishedLocationsGroupedByProvince(supabase),
-  ]);
-  const mapLocations = [...grouped.values()].flat().map((l) => ({ id: l.id, name: l.name, city: l.city }));
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-4 sm:p-6">
@@ -38,13 +58,30 @@ export default async function HomePage() {
               </div>
             }
           >
-            <LocationsMapLoader locations={mapLocations} openLocationLabel={tResults("card.openLocation")} />
+            <Suspense
+              fallback={
+                <div className="h-full min-h-[320px] w-full animate-pulse rounded-xl bg-[var(--surface)]" aria-hidden="true" />
+              }
+            >
+              <MapSection openLocationLabel={tResults("card.openLocation")} />
+            </Suspense>
           </ClientErrorBoundary>
           <p className="text-xs text-[var(--muted)]">{t("mapCaption")}</p>
         </div>
         <div className="flex flex-col gap-3">
           <h2 className="font-medium">{t("searchSectionTitle")}</h2>
-          <SearchForm provinces={provinces} documentTypes={documentTypes} />
+          <Suspense
+            fallback={
+              <div className="flex flex-col gap-3">
+                <LoadingIndicator />
+                <div className="h-10 w-full animate-pulse rounded-md bg-[var(--surface)]" aria-hidden="true" />
+                <div className="h-40 w-full animate-pulse rounded-md bg-[var(--surface)]" aria-hidden="true" />
+                <div className="h-10 w-1/3 animate-pulse rounded-md bg-[var(--surface)]" aria-hidden="true" />
+              </div>
+            }
+          >
+            <SearchSection />
+          </Suspense>
         </div>
       </div>
 
