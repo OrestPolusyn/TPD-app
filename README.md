@@ -37,6 +37,8 @@ npm install
    ```
    This is idempotent (safe to re-run against an unchanged database — see the
    caveat in `scripts/seed.ts`'s header about re-running after moderation).
+   Re-running after the official list changes also hides the locations it
+   dropped; they keep their reports and can be re-published by a moderator.
 
 ### 3. Create the Telegram bot
 

@@ -22,7 +22,7 @@ describe.skipIf(!dbReachable)("seed import (supabase/tests/01_load_fixture_seed.
     expect(dbIds.sort()).toEqual(csvRows.map((r) => r.id).sort());
   });
 
-  it("imports verified/official_2022 rows as published and conflict rows as pending", () => {
+  it("imports every non-conflict row as published and conflict rows as pending", () => {
     const rows = sqlJson<{ id: string; moderation_status: string }[]>(
       `select json_agg(json_build_object('id', id, 'moderation_status', moderation_status)) from locations;`
     );
@@ -33,7 +33,7 @@ describe.skipIf(!dbReachable)("seed import (supabase/tests/01_load_fixture_seed.
     }
   });
 
-  it("matches the current fixture expectation: 72 rows, 71 published, 1 pending", () => {
+  it("matches the current fixture expectation: 70 rows, 69 published, 1 pending", () => {
     const counts = sqlJson<{ total: number; published: number; pending: number }>(
       `select json_build_object(
         'total', count(*),
@@ -41,7 +41,7 @@ describe.skipIf(!dbReachable)("seed import (supabase/tests/01_load_fixture_seed.
         'pending', count(*) filter (where moderation_status = 'pending')
       ) from locations;`
     );
-    expect(counts).toEqual({ total: 72, published: 71, pending: 1 });
+    expect(counts).toEqual({ total: 70, published: 69, pending: 1 });
   });
 
   it("links every seeded location to temporary_protection_application", () => {

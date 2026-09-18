@@ -22,7 +22,7 @@ In it, a person in Spain picks a province and the documents they hold, and sees:
 
 ## INPUTS (source-of-truth order, highest first)
 1. Official Spanish government sources. They are listed in `seed/VERIFICATION.md`.
-2. `seed/locations.csv`: 72 rows (4 CREADE + 68 police stations, all 52 provinces).
+2. `seed/locations.csv`: 70 rows (4 CREADE + 66 police localities, all 52 provinces).
    - Columns: id, name, type, region, province, city, address, postal_code, phone, email,
      appointment_method, appointment_url, source_url, official_list_url, source_date,
      verified_at, verification_status, notes.
@@ -421,7 +421,7 @@ Required tests:
 - [ ] The seed test reads `seed/locations.csv` and asserts:
   - [ ] location rows in DB = CSV data rows, each CSV `id` present exactly once;
   - [ ] every `verified` or `official_2022` row is `published`; every `conflict` row is `pending`;
-  - [ ] the current fixture expectation holds: 72 rows, 71 `published`, 1 `pending`.
+  - [ ] the current fixture expectation holds: 70 rows, 69 `published`, 1 `pending`.
     The test fails if the CSV no longer matches this, so the numbers are updated deliberately.
 - [ ] Every seeded location is linked to `temporary_protection_application`.
 - [ ] `policy_changes` is empty after seeding.

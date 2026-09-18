@@ -95,7 +95,7 @@
     "ogDescription": "{city}, {province}. Досвід спільноти щодо тимчасового захисту.",
     "officialBlockTitle": "Офіційна інформація",
     "officialSourceLabel": "Джерело: {source}, дата: {date}",
-    "officialSourceCreade": "Поточна сторінка MISSM",
+    "officialSourceMissm": "Поточна сторінка MISSM",
     "officialSourceOfficial2022": "Офіційний список МВС, оновлено 03/2022",
     "officialSourceConflict": "Суперечливі офіційні джерела — на перевірці",
     "officialSourceUserSubmitted": "Додано користувачем, очікує перевірки модератором",

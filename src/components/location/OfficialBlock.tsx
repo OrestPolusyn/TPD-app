@@ -6,7 +6,7 @@ function officialSourceLabel(
   t: Awaited<ReturnType<typeof getTranslations<"location">>>,
   location: LocationRow
 ): string {
-  if (location.verification_status === "verified") return t("officialSourceCreade");
+  if (location.verification_status === "verified") return t("officialSourceMissm");
   if (location.verification_status === "conflict") return t("officialSourceConflict");
   if (location.verification_status === "user_submitted") return t("officialSourceUserSubmitted");
   return t("officialSourceOfficial2022");

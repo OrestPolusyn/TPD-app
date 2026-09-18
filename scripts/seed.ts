@@ -8,6 +8,9 @@
  * Usage:
  *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npx tsx scripts/seed.ts
  *
+ * Rows the CSV no longer lists are hidden, not deleted, so an official list that
+ * drops a locality stops showing it without cascading away community reports.
+ *
  * Idempotency: re-running against an unchanged DB produces the same end state
  * (upsert by primary key). Caveat: this recomputes `moderation_status` from the
  * CSV's `verification_status` on every run, so re-running after a moderator has
@@ -137,6 +140,26 @@ async function main() {
     .from("location_procedures")
     .upsert(linkPayload, { onConflict: "location_id,procedure_code" });
   if (linkError) throw linkError;
+
+  // Retire seeded rows the official list no longer carries. Upsert alone would
+  // leave them published with stale data — e.g. the 2022 Interior XLSX listed
+  // six Murcia-region comisarías that the current MISSM list replaced with one.
+  // Hidden rather than deleted: `reports` references location_procedures, so a
+  // delete would cascade away real community reports, and `hidden` is already
+  // excluded from every app query.
+  console.log("Retiring seeded locations absent from the CSV...");
+  const seededIds = rows.map((row) => row.id);
+  const { data: retired, error: retireError } = await supabase
+    .from("locations")
+    .update({ moderation_status: "hidden" })
+    .neq("verification_status", "user_submitted")
+    .not("moderation_status", "eq", "hidden")
+    .not("id", "in", `(${seededIds.join(",")})`)
+    .select("id");
+  if (retireError) throw retireError;
+  if (retired && retired.length > 0) {
+    console.log(`  hid ${retired.length}: ${retired.map((r) => r.id).join(", ")}`);
+  }
 
   const published = locationPayload.filter((l) => l.moderation_status === "published").length;
   const pending = locationPayload.filter((l) => l.moderation_status === "pending").length;
