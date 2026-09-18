@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { config } from "@/lib/config";
-import { TelegramLoginWidget } from "@/components/auth/TelegramLoginWidget";
+import { TelegramAuthPanel } from "@/components/auth/TelegramAuthPanel";
 import { DeleteAccountButton } from "@/components/me/DeleteAccountButton";
 import { getOwnReports, getOwnComments, getOwnSuggestions } from "@/lib/data/me";
 import { formatDate } from "@/lib/format";
@@ -34,9 +34,17 @@ export default async function MePage() {
         <h1 className="text-2xl font-bold tracking-tight">{t("loginTitle")}</h1>
         <p className="text-sm text-[var(--muted)]">{t("loginHint")}</p>
         <p className="text-sm text-[var(--muted)]">{t("loginTroubleshooting")}</p>
-        {botUsername ? (
-          <TelegramLoginWidget botUsername={botUsername} labels={{ failed: t("loginFailed") }} />
-        ) : null}
+        <TelegramAuthPanel
+          botUsername={botUsername}
+          labels={{
+            checking: t("telegramChecking"),
+            failed: t("loginFailed"),
+            badHash: t("telegramBadHash"),
+            expired: t("sessionExpired"),
+            otherFailure: t("telegramOtherFailure"),
+            reopen: t("reopenApp"),
+          }}
+        />
         {devLoginEnabled ? (
           <div className="flex flex-col gap-2 border-t border-[var(--border)] pt-4 text-sm">
             <a href="/api/auth/dev?user=1" className="underline">

@@ -36,6 +36,8 @@ export interface TelegramWebApp {
   themeParams: TelegramThemeParams;
   ready(): void;
   expand(): void;
+  /** Closes the Mini App. Reopening mints fresh initData, which is the fix for an expired one. */
+  close(): void;
   MainButton: TelegramWebAppButton;
   BackButton: TelegramBackButton;
   onEvent(event: string, callback: () => void): void;
