@@ -40,6 +40,24 @@ export async function GET() {
     supabaseUrlHost = null;
   }
 
+  // Everything in this block is already public: Next.js inlines NEXT_PUBLIC_*
+  // into the browser bundle. It is here because "Bot domain invalid" from the
+  // Telegram Login Widget means the bot has no domain linked matching the page
+  // serving it, and `setdomainShouldBe` is exactly the value to hand
+  // @BotFather's /setdomain — bare host, no scheme, no trailing slash.
+  let siteUrlHost: string | null = null;
+  try {
+    siteUrlHost = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "").host;
+  } catch {
+    siteUrlHost = null;
+  }
+  const telegram = {
+    botUsername: process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || null,
+    miniAppName: process.env.NEXT_PUBLIC_TELEGRAM_MINI_APP_NAME || null,
+    siteUrlHost,
+    setdomainShouldBe: siteUrlHost,
+  };
+
   let supabase: { ok: boolean; error: string | null; publishedLocations: number | null } = {
     ok: false,
     error: null,
@@ -86,6 +104,7 @@ export async function GET() {
     env,
     supabaseUrlHost,
     supabaseUrlLooksValid,
+    telegram,
     supabase,
     restProbe,
     nodeEnv: process.env.NODE_ENV ?? null,
