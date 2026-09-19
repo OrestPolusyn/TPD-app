@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getMe } from "@/lib/telegram/api";
+import { getMe, getWebhookInfo } from "@/lib/telegram/api";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +21,7 @@ export async function GET() {
     NEXT_PUBLIC_SUPABASE_ANON_KEY: present("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
     SUPABASE_SERVICE_ROLE_KEY: present("SUPABASE_SERVICE_ROLE_KEY"),
     TELEGRAM_BOT_TOKEN: present("TELEGRAM_BOT_TOKEN"),
+    TELEGRAM_WEBHOOK_SECRET: present("TELEGRAM_WEBHOOK_SECRET"),
     NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: present("NEXT_PUBLIC_TELEGRAM_BOT_USERNAME"),
     NEXT_PUBLIC_SITE_URL: present("NEXT_PUBLIC_SITE_URL"),
     OFFICIAL_INFO_URL: present("OFFICIAL_INFO_URL"),
@@ -61,10 +62,28 @@ export async function GET() {
   const configuredUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME?.trim().replace(/^@+/, "") || null;
   let tokenBelongsTo: string | null = null;
   let tokenError: string | null = null;
+  let webhook: {
+    registered: boolean;
+    url: string | null;
+    pendingUpdates: number | null;
+    lastError: string | null;
+  } | null = null;
   if (botToken) {
     try {
       tokenBelongsTo = (await getMe(botToken))?.username ?? null;
       if (!tokenBelongsTo) tokenError = "getMe rejected the token";
+      const info = await getWebhookInfo(botToken);
+      webhook = info
+        ? {
+            // An empty url is Telegram's way of saying "no webhook": the bot
+            // then ignores every message, which looks exactly like a bot that
+            // is broken rather than one that was never registered.
+            registered: info.url !== "",
+            url: info.url || null,
+            pendingUpdates: info.pending_update_count,
+            lastError: info.last_error_message ?? null,
+          }
+        : null;
     } catch (err) {
       tokenError = err instanceof Error ? err.message : String(err);
     }
@@ -74,6 +93,10 @@ export async function GET() {
     botUsername: configuredUsername,
     tokenBelongsTo,
     tokenError,
+    webhook,
+    // Set on the host but absent here means the webhook route 403s every
+    // update, and getWebhookInfo above will be quoting that back.
+    webhookSecretSet: Boolean(process.env.TELEGRAM_WEBHOOK_SECRET),
     /** false here explains a `bad_hash` login failure on its own. */
     botMatchesToken:
       configuredUsername && tokenBelongsTo
