@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getTranslations } from "next-intl/server";
+import messages from "../../../../../messages/uk.json";
 import { callTelegram } from "@/lib/telegram/api";
+import { deriveWebhookSecret } from "@/lib/telegram/webhookSecret";
 import { config } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
@@ -26,16 +27,16 @@ interface TelegramUpdate {
  */
 export async function POST(request: NextRequest) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
 
   if (!token) {
     console.error("TELEGRAM_BOT_TOKEN is not set; ignoring webhook update.");
     return NextResponse.json({ ok: true });
   }
 
-  // Telegram echoes the secret set via setWebhook. Without this check anyone
-  // who guesses the URL can make the bot speak.
-  if (!secret || request.headers.get("x-telegram-bot-api-secret-token") !== secret) {
+  // Telegram echoes the secret that setWebhook registered. Derived from the
+  // token, so the two sides cannot drift apart. Without this check anyone who
+  // guesses the URL could make the bot speak.
+  if (request.headers.get("x-telegram-bot-api-secret-token") !== deriveWebhookSecret(token)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
@@ -58,7 +59,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  const t = await getTranslations("telegramBot");
+  // Messages read straight from the JSON, as src/app/error.tsx does: a bot
+  // reply needs two strings, not next-intl's runtime, and importing it here
+  // pulls in a react-client build that cannot run outside a request render.
+  const t = messages.telegramBot;
   const siteUrl = config.siteUrl();
   const miniAppName = config.telegramMiniAppName();
   const botUsername = config.telegramBotUsername();
@@ -67,15 +71,15 @@ export async function POST(request: NextRequest) {
   // name we fall back to a normal link, which works everywhere.
   const button =
     miniAppName && botUsername
-      ? { text: t("openButton"), web_app: { url: siteUrl } }
-      : { text: t("openButton"), url: siteUrl };
+      ? { text: t.openButton, web_app: { url: siteUrl } }
+      : { text: t.openButton, url: siteUrl };
 
   // A throw here would surface as a 500, and Telegram retries a failed update
   // indefinitely — one unreachable API call would become a permanent loop.
   try {
     const res = await callTelegram(token, "sendMessage", {
       chat_id: chatId,
-      text: t("startMessage"),
+      text: t.startMessage,
       reply_markup: { inline_keyboard: [[button]] },
     });
     if (!res.ok) {

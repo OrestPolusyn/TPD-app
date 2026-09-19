@@ -3,13 +3,15 @@
  * which bot the token actually belongs to.
  *
  * Usage:
- *   TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=... \
- *   NEXT_PUBLIC_SITE_URL=https://your-host npx tsx scripts/telegram-setup.ts
+ *   TELEGRAM_BOT_TOKEN=... NEXT_PUBLIC_SITE_URL=https://your-host \
+ *     npx tsx scripts/telegram-setup.ts
+ *
+ * The deployment can do this to itself instead: open /api/telegram/setup.
  *
  * Idempotent: re-running overwrites the same webhook and command list.
  */
-import { randomBytes } from "node:crypto";
 import { callTelegram, getMe } from "../src/lib/telegram/api";
+import { deriveWebhookSecret } from "../src/lib/telegram/webhookSecret";
 
 interface WebhookInfo {
   url: string;
@@ -21,18 +23,10 @@ interface WebhookInfo {
 async function main() {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-  const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
-
   if (!token || !siteUrl) {
     console.error("Missing TELEGRAM_BOT_TOKEN and/or NEXT_PUBLIC_SITE_URL.");
     process.exit(1);
   }
-  if (!secret) {
-    console.error("Missing TELEGRAM_WEBHOOK_SECRET. Generate one and set it here and on the host:");
-    console.error(`  TELEGRAM_WEBHOOK_SECRET=${randomBytes(24).toString("hex")}`);
-    process.exit(1);
-  }
-
   const me = await getMe(token);
   if (!me) {
     console.error("getMe failed — TELEGRAM_BOT_TOKEN is not a valid bot token.");
@@ -47,7 +41,7 @@ async function main() {
   const webhookUrl = `${siteUrl.replace(/\/$/, "")}/api/telegram/webhook`;
   const hook = await callTelegram(token, "setWebhook", {
     url: webhookUrl,
-    secret_token: secret,
+    secret_token: deriveWebhookSecret(token),
     allowed_updates: ["message"],
     drop_pending_updates: true,
   });

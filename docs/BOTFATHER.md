@@ -42,21 +42,32 @@ button when `NEXT_PUBLIC_TELEGRAM_MINI_APP_NAME` is set, otherwise as a plain
 link, so the bot is useful before the Mini App exists. It is a webhook, not a
 long-running process: Telegram POSTs, the function answers, it ends.
 
-Register it once per environment:
+Register it once per environment. Easiest — **open this URL on the deployment**:
 
 ```
-TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=... \
-NEXT_PUBLIC_SITE_URL=https://your-host npm run telegram:setup
+https://<your-host>/api/telegram/setup
 ```
 
-It prints **which bot the token belongs to** before doing anything else — start
-here whenever a login fails, because that bot must be the same one that owns the
-Mini App and that you ran `/setdomain` on. Then it calls `setWebhook` (with the
-secret), `setMyCommands`, and prints `getWebhookInfo`.
+The deployment already holds the token and can reach api.telegram.org, so it
+registers its own webhook and command list and answers with what it did. Safe to
+open repeatedly: it takes no input, only ever points the bot at its own
+`/api/telegram/webhook`, and reports "already registered" without changing
+anything when the webhook is healthy.
 
-`TELEGRAM_WEBHOOK_SECRET` must be set on the host too: Telegram echoes it in
-`X-Telegram-Bot-Api-Secret-Token`, and the route rejects anything else, so
-nobody who guesses the URL can make the bot speak.
+From a terminal instead:
+
+```
+TELEGRAM_BOT_TOKEN=... NEXT_PUBLIC_SITE_URL=https://your-host npm run telegram:setup
+```
+
+Either way it prints **which bot the token belongs to** first — start here
+whenever a login fails, because that bot must also be the one that owns the Mini
+App and that you ran `/setdomain` on.
+
+There is no webhook secret to configure. Telegram echoes a `secret_token` in
+`X-Telegram-Bot-Api-Secret-Token` and the route rejects anything else, but that
+value is derived from the bot token (HMAC), so both sides compute it from what
+they already share and cannot drift apart.
 
 <details>
 <summary>The previous manual approach, for reference</summary>
