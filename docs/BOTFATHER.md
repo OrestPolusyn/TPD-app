@@ -94,6 +94,23 @@ broadcasts, notifications, follow-ups). Only `/start` needs a reply with an
 
 </details>
 
+## 4b. Signing in
+
+Sign-in goes through the bot, and needs no BotFather step at all: `/me` links to
+`t.me/<bot>?start=login`, the webhook mints a one-time token for the Telegram
+user id on that update (authentic, because Telegram signed the update), and the
+bot replies with a link to `/auth/telegram?token=…`. The token is stored hashed,
+expires in 10 minutes and is redeemed by a single guarded UPDATE, so it cannot
+be replayed.
+
+Inside the Mini App the silent `initData` exchange still runs and signs people
+in without any of this.
+
+The Telegram Login Widget was removed. It requires step 5 below, and until that
+is done it renders nothing but "Bot domain invalid" to every visitor — a broken
+control on the page with no way to detect it from the app. Step 5 is now
+optional; the sections below are kept for the Mini App and for reference.
+
 ## 5. Enable the Login Widget (web)
 
 No separate BotFather step is required beyond having created the bot — the
