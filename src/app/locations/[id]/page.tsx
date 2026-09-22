@@ -5,11 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { getLocationById } from "@/lib/data/locations";
 import { getFlaggedReportsForLocation, getReportDetails, getCommentsForReports } from "@/lib/data/reports";
 import { getActiveDocumentTypes } from "@/lib/data/documentTypes";
-import { ProcedureBlock } from "@/components/location/ProcedureBlock";
 import { OfficialBlock } from "@/components/location/OfficialBlock";
 import { CommunityBlock } from "@/components/location/CommunityBlock";
 import { ShareActions } from "@/components/location/ShareActions";
 import { Disclaimer } from "@/components/shared/Disclaimer";
+import { StickyActionBar } from "@/components/shared/StickyActionBar";
 import { PROCEDURE_CODE } from "@/lib/matching/types";
 import { config } from "@/lib/config";
 import { normalizeDocsParam } from "@/lib/searchParams";
@@ -89,7 +89,7 @@ export default async function LocationPage({ params, searchParams }: LocationPag
   const tShare = await getTranslations("location");
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-6">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 pb-24 sm:p-6 sm:pb-24">
       <h1 className="text-2xl font-bold tracking-tight">{location.name}</h1>
       <ShareActions
         webUrl={webUrl}
@@ -100,8 +100,6 @@ export default async function LocationPage({ params, searchParams }: LocationPag
           openTelegram: tShare("shareOpenTelegram"),
         }}
       />
-      <ProcedureBlock location={location} />
-      <OfficialBlock location={location} />
       <CommunityBlock
         locationId={location.id}
         data={matchingData}
@@ -110,7 +108,9 @@ export default async function LocationPage({ params, searchParams }: LocationPag
         documentLabels={documentLabels}
         comments={comments}
       />
+      <OfficialBlock location={location} />
       <Disclaimer />
+      <StickyActionBar href={`/reports/new?location=${location.id}`} label={tShare("addReportCta")} />
     </main>
   );
 }

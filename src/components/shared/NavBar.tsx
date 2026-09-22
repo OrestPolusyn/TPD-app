@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { DetailsAutoClose } from "@/components/shared/DetailsAutoClose";
 
 const linkClassName = "text-[var(--muted)] no-underline transition-colors hover:text-[var(--foreground)]";
 const ctaClassName =
@@ -37,7 +38,7 @@ export async function NavBar() {
         </nav>
 
         {/* Mobile: native <details> disclosure — zero added client JS. */}
-        <details className="relative sm:hidden">
+        <details id="nav-menu" className="relative sm:hidden">
           <summary
             aria-label={t("home")}
             className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-md border border-[var(--border)] text-lg [&::-webkit-details-marker]:hidden"
@@ -58,6 +59,7 @@ export async function NavBar() {
             </Link>
           </nav>
         </details>
+        <DetailsAutoClose id="nav-menu" />
       </div>
     </header>
   );

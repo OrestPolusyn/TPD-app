@@ -22,9 +22,17 @@ vi.mock("@/lib/supabase/admin", () => ({
 
 const { issueLoginToken, consumeLoginToken, LOGIN_TOKEN_TTL_MINUTES } = await import("./loginTokens");
 
-function updateChain(row: { telegram_user_id: number } | null) {
-  const chain = {
-    eq: vi.fn((_column: string, _value: string) => chain),
+interface Chain {
+  eq: ReturnType<typeof vi.fn>;
+  is: ReturnType<typeof vi.fn>;
+  gt: ReturnType<typeof vi.fn>;
+  select: ReturnType<typeof vi.fn>;
+  maybeSingle: ReturnType<typeof vi.fn>;
+}
+
+function updateChain(row: { telegram_user_id: number } | null): Chain {
+  const chain: Chain = {
+    eq: vi.fn(() => chain),
     is: vi.fn(() => chain),
     gt: vi.fn(() => chain),
     select: vi.fn(() => chain),
