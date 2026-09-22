@@ -10,9 +10,9 @@ export default async function NewLocationPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const [t, tMethods, tAuth] = await Promise.all([
+  const [t, tCommon, tAuth] = await Promise.all([
     getTranslations("newLocationForm"),
-    getTranslations("appointmentMethods"),
+    getTranslations("common"),
     getTranslations("auth"),
   ]);
 
@@ -28,37 +28,21 @@ export default async function NewLocationPage() {
   }
 
   const labels: NewLocationFormLabels = {
-    nameLabel: t("nameLabel"),
-    typeLabel: t("typeLabel"),
-    provinceLabel: t("provinceLabel"),
-    regionLabel: t("regionLabel"),
-    cityLabel: t("cityLabel"),
-    addressLabel: t("addressLabel"),
-    postalCodeLabel: t("postalCodeLabel"),
-    phoneLabel: t("phoneLabel"),
-    appointmentMethodLabel: t("appointmentMethodLabel"),
-    appointmentUrlLabel: t("appointmentUrlLabel"),
+    descriptionLabel: t("descriptionLabel"),
+    descriptionHint: t("descriptionHint"),
     submitButton: t("submitButton"),
-    submitting: (await getTranslations("common"))("submitting"),
-    duplicateWarning: t("duplicateWarning"),
+    submitting: tCommon("submitting"),
     successMessage: t("successMessage"),
     pendingNotice: t("pendingNotice"),
-    errorGeneric: (await getTranslations("common"))("errorGeneric"),
-    appointmentMethods: {
-      phone: tMethods("phone"),
-      email: tMethods("email"),
-      phone_or_email: tMethods("phone_or_email"),
-      icp_online: tMethods("icp_online"),
-    },
-    locationTypes: {
-      creade: t("locationTypeCreade"),
-      police_station: t("locationTypePoliceStation"),
-    },
+    errorGeneric: tCommon("errorGeneric"),
   };
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-4 sm:p-6">
-      <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
+        <p className="mt-1 text-sm text-[var(--muted)]">{t("intro")}</p>
+      </div>
       <NewLocationForm labels={labels} />
     </main>
   );

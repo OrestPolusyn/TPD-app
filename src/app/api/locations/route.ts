@@ -2,7 +2,20 @@ import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { newLocationSchema } from "@/lib/validation/newLocationSchema";
-import { slugify } from "@/lib/slugify";
+
+/**
+ * The user provides free text only; every structured field goes to a
+ * placeholder here and gets corrected by a moderator (Supabase dashboard —
+ * this repo has no admin UI, see README) before the location is published.
+ * "police_station" as the type default because most submissions historically
+ * are: 66 of the 70 seeded locations.
+ */
+const PLACEHOLDER_NAME = "Пропозиція від користувача (очікує на перевірку)";
+const PLACEHOLDER_TYPE = "police_station";
+const PLACEHOLDER_REGION = "";
+const PLACEHOLDER_PROVINCE = "";
+const PLACEHOLDER_CITY = "";
+const PLACEHOLDER_APPOINTMENT_METHOD = "phone";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -25,20 +38,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "validation", issues: parsed.error.issues }, { status: 400 });
   }
   const input = parsed.data;
-  const id = `${slugify(input.name)}-${randomBytes(4).toString("hex")}`;
+  const id = `suggestion-${randomBytes(6).toString("hex")}`;
 
   const { data, error } = await supabase.rpc("submit_new_location", {
     p_id: id,
-    p_name: input.name,
-    p_type: input.type,
-    p_region: input.region,
-    p_province: input.province,
-    p_city: input.city,
-    p_appointment_method: input.appointment_method,
-    p_address: input.address ?? null,
-    p_postal_code: input.postal_code ?? null,
-    p_phone: input.phone ?? null,
-    p_appointment_url: input.appointment_url ?? null,
+    p_name: PLACEHOLDER_NAME,
+    p_type: PLACEHOLDER_TYPE,
+    p_region: PLACEHOLDER_REGION,
+    p_province: PLACEHOLDER_PROVINCE,
+    p_city: PLACEHOLDER_CITY,
+    p_appointment_method: PLACEHOLDER_APPOINTMENT_METHOD,
+    p_notes: input.description,
   });
 
   if (error) {
