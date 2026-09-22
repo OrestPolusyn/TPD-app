@@ -66,6 +66,8 @@ export async function GET() {
     url: string | null;
     pendingUpdates: number | null;
     lastError: string | null;
+    allowedUpdates: string[] | null;
+    deliversLoginConfirmations: boolean;
   } | null = null;
   if (botToken) {
     try {
@@ -81,6 +83,13 @@ export async function GET() {
             url: info.url || null,
             pendingUpdates: info.pending_update_count,
             lastError: info.last_error_message ?? null,
+            // A webhook subscribed to "message" only still receives everything
+            // except button presses, so sign-in confirmations vanish with no
+            // error anywhere. false here explains "the confirm button does
+            // nothing" on its own. (Absent means Telegram's default set,
+            // which includes callback_query.)
+            allowedUpdates: info.allowed_updates ?? null,
+            deliversLoginConfirmations: !info.allowed_updates || info.allowed_updates.includes("callback_query"),
           }
         : null;
     } catch (err) {

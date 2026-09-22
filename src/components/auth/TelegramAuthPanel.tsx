@@ -59,19 +59,16 @@ export interface TelegramAuthPanelLabels {
  */
 export function TelegramAuthPanel({
   botUsername,
-  startFailed,
   labels,
 }: {
   botUsername: string | null;
-  /** True when a previous start attempt bounced back to /me. */
-  startFailed?: boolean;
   labels: TelegramAuthPanelLabels;
 }) {
   const { isTelegram, auth, webApp } = useTelegram();
 
   if (!isTelegram) {
     if (!botUsername) return null;
-    return <BrowserLogin startFailed={startFailed} labels={labels} />;
+    return <BrowserLogin labels={labels} />;
   }
 
   if (auth.status === "pending" || auth.status === "idle") {
@@ -122,45 +119,54 @@ export function TelegramAuthPanel({
  * approval lands, creating the session here. The chat never carries a session,
  * so it no longer matters which browser it would have opened.
  */
-function BrowserLogin({ startFailed, labels }: { startFailed?: boolean; labels: TelegramAuthPanelLabels }) {
+function BrowserLogin({ labels }: { labels: TelegramAuthPanelLabels }) {
   const router = useRouter();
-  const [phase, setPhase] = useState<"idle" | "waiting" | "timedOut" | "failed">(startFailed ? "failed" : "idle");
-  const [code, setCode] = useState<string | null>(null);
+  const [phase, setPhase] = useState<"starting" | "ready" | "waiting" | "timedOut" | "failed">("starting");
+  const [request, setRequest] = useState<{ deepLink: string; code: string } | null>(null);
 
-  /** One check. Answers whether it is still worth polling. */
-  const poll = useCallback(async (): Promise<boolean> => {
-    let body: PollResponse;
+  /**
+   * Asks for the link to the bot. The request is minted here rather than
+   * behind the button so that the button can be a plain <a href="https://t.me/…">:
+   * a direct tap on a t.me address hands over to the Telegram app and leaves
+   * this page in place, where a redirect would have cost either an abandoned
+   * tab or the page that is waiting for the confirmation.
+   */
+  const start = useCallback(async () => {
+    setPhase("starting");
     try {
-      const res = await fetch("/api/auth/telegram/poll", { method: "POST" });
-      body = (await res.json()) as PollResponse;
-    } catch {
-      // A request dropped while the OS was switching apps is normal here.
-      return true;
-    }
-
-    switch (body.status) {
-      case "signed_in":
-        router.refresh();
-        return false;
-      case "pending":
-        setCode(body.code ?? null);
-        setPhase("waiting");
-        return true;
-      case "expired":
-        setPhase("timedOut");
-        return false;
-      case "failed":
+      const res = await fetch("/api/auth/telegram/start", { method: "POST" });
+      if (!res.ok) {
         setPhase("failed");
-        return false;
-      default:
-        return false; // "none" — nothing was started from this browser
+        return;
+      }
+      const body = (await res.json()) as { deepLink: string; code: string; resumed: boolean };
+      setRequest({ deepLink: body.deepLink, code: body.code });
+      // Resumed means the bot was already asked and may already have been
+      // answered — including while this page was gone, if the browser dropped
+      // it and reloaded on the way back.
+      setPhase(body.resumed ? "waiting" : "ready");
+    } catch {
+      setPhase("failed");
     }
-  }, [router]);
+  }, []);
 
   useEffect(() => {
-    // Nothing left to wait for, and re-checking could drag a timed-out panel
-    // back into "waiting" on a request the server still considers alive.
-    if (phase === "timedOut" || phase === "failed") return;
+    const timer = setTimeout(() => void start(), 0);
+    return () => clearTimeout(timer);
+  }, [start]);
+
+  const poll = useCallback(async (): Promise<PollStatus | null> => {
+    try {
+      const res = await fetch("/api/auth/telegram/poll", { method: "POST" });
+      return ((await res.json()) as PollResponse).status;
+    } catch {
+      // A request dropped while the OS was switching apps is normal here.
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "waiting") return;
 
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -168,8 +174,22 @@ function BrowserLogin({ startFailed, labels }: { startFailed?: boolean; labels: 
 
     const tick = async () => {
       if (stopped) return;
-      const keepGoing = await poll();
-      if (stopped || !keepGoing) return;
+      const status = await poll();
+      if (stopped) return;
+
+      if (status === "signed_in") {
+        router.refresh();
+        return;
+      }
+      if (status === "expired" || status === "none") {
+        setPhase("timedOut");
+        return;
+      }
+      if (status === "failed") {
+        setPhase("failed");
+        return;
+      }
+      // "pending", or null from a dropped request: keep waiting.
       if (Date.now() > deadline) {
         setPhase("timedOut");
         return;
@@ -185,10 +205,6 @@ function BrowserLogin({ startFailed, labels }: { startFailed?: boolean; labels: 
       void tick();
     };
 
-    // The first check runs on a timer rather than inline, so a mount with
-    // nothing to poll for does not cascade a render and cleanup can cancel it.
-    // It also covers a request started in another tab, or before a reload —
-    // the cookie is what matters, not the tab that set it.
     timer = setTimeout(tick, 0);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
@@ -196,43 +212,56 @@ function BrowserLogin({ startFailed, labels }: { startFailed?: boolean; labels: 
       clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [phase, poll]);
+  }, [phase, poll, router]);
+
+  if (phase === "starting") {
+    return (
+      <p role="status" className="flex items-center gap-2 text-sm text-[var(--muted)]">
+        <Spinner />
+      </p>
+    );
+  }
+
+  if (phase === "failed" || !request) {
+    return (
+      <div className="flex flex-col items-start gap-2">
+        <p className="text-sm text-[var(--danger)]">{labels.startFailed}</p>
+        <button
+          type="button"
+          onClick={() => void start()}
+          className="rounded-full border border-[var(--accent)] px-4 py-2 font-medium text-[var(--accent)] transition-colors hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]"
+        >
+          {labels.retry}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex w-full flex-col items-start gap-3">
-      {phase === "failed" ? <p className="text-sm text-[var(--danger)]">{labels.startFailed}</p> : null}
       {phase === "timedOut" ? <p className="text-sm text-[var(--danger)]">{labels.timedOut}</p> : null}
 
       <a
-        href="/api/auth/telegram/start"
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => {
-          setCode(null);
-          setPhase("waiting");
-        }}
+        href={request.deepLink}
+        onClick={() => setPhase("waiting")}
         className="rounded-full border border-[var(--accent)] px-4 py-2 font-medium text-[var(--accent)] no-underline transition-colors hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]"
       >
-        {phase === "waiting" || phase === "timedOut" ? labels.retry : labels.openBot}
+        {phase === "ready" ? labels.openBot : labels.retry}
       </a>
 
-      {phase === "waiting" ? (
-        <div className="flex w-full flex-col gap-1 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
+      <div className="flex w-full flex-col gap-1 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
+        {phase === "waiting" ? (
           <p role="status" className="flex items-center gap-2 text-sm text-[var(--muted)]">
             <Spinner />
             {labels.waiting}
           </p>
-          {code ? (
-            <>
-              <p className="mt-2 text-xs uppercase tracking-wide text-[var(--muted)]">{labels.codeLabel}</p>
-              <p className="text-3xl font-bold tracking-[0.3em] tabular-nums">{code}</p>
-              <p className="text-xs text-[var(--muted)]">{labels.codeHint}</p>
-            </>
-          ) : null}
-        </div>
-      ) : (
-        <p className="text-sm text-[var(--muted)]">{labels.openBotHint}</p>
-      )}
+        ) : (
+          <p className="text-sm text-[var(--muted)]">{labels.openBotHint}</p>
+        )}
+        <p className="mt-2 text-xs uppercase tracking-wide text-[var(--muted)]">{labels.codeLabel}</p>
+        <p className="text-3xl font-bold tracking-[0.3em] tabular-nums">{request.code}</p>
+        <p className="text-xs text-[var(--muted)]">{labels.codeHint}</p>
+      </div>
     </div>
   );
 }

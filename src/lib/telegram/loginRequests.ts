@@ -53,6 +53,30 @@ export async function createLoginRequest(): Promise<NewLoginRequest | null> {
   return { requestId, nonce, code };
 }
 
+/**
+ * The login this browser already has in flight, if any.
+ *
+ * Reloading /me (or coming back to it) must not mint a second request: the
+ * bot's message still quotes the first one's code, and approving it would
+ * leave the browser polling for a request nobody confirmed.
+ */
+export async function findPendingRequestByNonce(nonce: string): Promise<{ requestId: string; code: string } | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("telegram_login_requests")
+    .select("request_id, code")
+    .eq("nonce_hash", hash(nonce))
+    .is("consumed_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .maybeSingle();
+
+  if (error) {
+    console.error("findPendingRequestByNonce failed:", error.message);
+    return null;
+  }
+  return data ? { requestId: data.request_id, code: data.code } : null;
+}
+
 /** The code to quote in the chat, or null if the request is spent or expired. */
 export async function findPendingLoginRequest(requestId: string): Promise<{ code: string } | null> {
   const admin = createAdminClient();

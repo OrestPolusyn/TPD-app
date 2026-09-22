@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { callTelegram } from "@/lib/telegram/api";
+import { callTelegram, getWebhookInfo } from "@/lib/telegram/api";
 import { deriveWebhookSecret } from "@/lib/telegram/webhookSecret";
 import { approveLoginRequest, findPendingLoginRequest } from "@/lib/telegram/loginRequests";
 import { config } from "@/lib/config";
@@ -104,11 +104,55 @@ async function handleMessage(token: string, update: TelegramUpdate) {
   const siteUrl = config.siteUrl().replace(/\/$/, "");
   const payload = command === "/start" ? (args[0] ?? "") : "";
 
-  const body = payload.startsWith(LOGIN_START_PREFIX)
-    ? await loginConfirmReply(chatId, payload.slice(LOGIN_START_PREFIX.length), t)
-    : welcomeReply(chatId, siteUrl, t);
+  if (!payload.startsWith(LOGIN_START_PREFIX)) {
+    await send(token, "sendMessage", welcomeReply(chatId, siteUrl, t));
+    return;
+  }
 
-  await send(token, "sendMessage", body);
+  // Before offering a button that only works if Telegram delivers callbacks.
+  await ensureLoginUpdatesDelivered(token);
+  await send(token, "sendMessage", await loginConfirmReply(chatId, payload.slice(LOGIN_START_PREFIX.length), t));
+}
+
+/** Set once per server instance: this is a repair, not a per-update check. */
+let loginUpdatesChecked = false;
+
+/**
+ * Re-subscribes the webhook to `callback_query` if it is not already.
+ *
+ * A webhook registered before the confirm button existed is subscribed to
+ * `message` only, and Telegram then silently drops every button press — the
+ * confirm button does nothing, with no error anywhere to find. That is exactly
+ * what happened in production, because the repair was a manual visit to
+ * /api/telegram/setup that nobody has reason to remember.
+ *
+ * This runs on the one update that is guaranteed to still arrive (the `/start`
+ * that opens the login), and before the button is sent, so the very next tap
+ * works.
+ */
+async function ensureLoginUpdatesDelivered(token: string) {
+  if (loginUpdatesChecked) return;
+  // Set before awaiting: a failing check must not repeat on every update.
+  loginUpdatesChecked = true;
+
+  try {
+    const info = await getWebhookInfo(token);
+    // Absent means Telegram's default set, which already includes callbacks.
+    if (!info?.url || !info.allowed_updates || info.allowed_updates.includes("callback_query")) return;
+
+    const res = await callTelegram(token, "setWebhook", {
+      url: info.url,
+      secret_token: deriveWebhookSecret(token),
+      allowed_updates: ["message", "callback_query"],
+    });
+    console.log(
+      res.ok
+        ? "webhook re-registered to receive callback_query"
+        : `webhook re-registration failed: ${res.description}`
+    );
+  } catch (err) {
+    console.error("could not check webhook subscriptions:", err);
+  }
 }
 
 /**

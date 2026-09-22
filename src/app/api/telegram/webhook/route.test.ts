@@ -165,6 +165,42 @@ describe("sign-in confirmation", () => {
     expect(calls.find((c) => c.method === "editMessageText")?.params.message_id).toBe(5);
   });
 
+  /**
+   * The failure this repairs is silent and total: a webhook registered before
+   * the confirm button existed gets `message` only, Telegram drops every
+   * button press, and pressing confirm does nothing at all. It happened in
+   * production, so the repair cannot be a manual step someone must remember.
+   */
+  it("re-subscribes the webhook to callback_query before offering the button", async () => {
+    vi.resetModules();
+    const { POST: freshPost } = await import("./route");
+    findPendingLoginRequest.mockResolvedValue({ code: "4242" });
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      const method = String(url).split("/").pop() ?? "";
+      const params = JSON.parse(String(init?.body ?? "{}"));
+      calls.push({ method, params });
+      const result =
+        method === "getWebhookInfo"
+          ? { url: "https://example.test/api/telegram/webhook", allowed_updates: ["message"], pending_update_count: 0 }
+          : true;
+      return new Response(JSON.stringify({ ok: true, result }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    await freshPost(update({ message: { chat: { id: 7 }, from: { id: 99 }, text: "/start login_req-abc" } }, SECRET));
+
+    const setWebhook = calls.find((c) => c.method === "setWebhook");
+    expect(setWebhook?.params.allowed_updates).toContain("callback_query");
+    // Repaired in place: re-pointing the webhook elsewhere would break it.
+    expect(setWebhook?.params.url).toBe("https://example.test/api/telegram/webhook");
+    // And the button is only sent afterwards, so the first tap already works.
+    expect(calls.findIndex((c) => c.method === "setWebhook")).toBeLessThan(
+      calls.findIndex((c) => c.method === "sendMessage")
+    );
+  });
+
   it("approves nothing for callback data that is not a login", async () => {
     await POST(
       update({ callback_query: { id: "cb-2", from: { id: 99 }, data: "something-else" } }, SECRET)

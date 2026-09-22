@@ -13,14 +13,7 @@ import { formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-interface MePageProps {
-  /** `?login=failed` comes from /api/auth/telegram/start when it could not
-   * mint a login request (no bot username configured, or the insert failed). */
-  searchParams: Promise<{ login?: string }>;
-}
-
-export default async function MePage({ searchParams }: MePageProps) {
-  const { login } = await searchParams;
+export default async function MePage() {
   const t = await getTranslations("auth");
   const tMe = await getTranslations("me");
   const tCommon = await getTranslations("common");
@@ -49,7 +42,6 @@ export default async function MePage({ searchParams }: MePageProps) {
         <RefreshOnReturn />
         <TelegramAuthPanel
           botUsername={botUsername}
-          startFailed={login === "failed"}
           labels={{
             checking: t("telegramChecking"),
             openBot: t("openBotButton"),

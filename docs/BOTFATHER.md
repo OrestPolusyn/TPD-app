@@ -99,10 +99,15 @@ broadcasts, notifications, follow-ups). Only `/start` needs a reply with an
 Sign-in goes through the bot, and needs no BotFather step at all. The browser
 starts it and keeps the session:
 
-1. `/me` links to `/api/auth/telegram/start`, which mints a login request,
-   puts its secret nonce in an httpOnly cookie on **this** browser, and
-   redirects to `t.me/<bot>?start=login_<requestId>` — only the public half of
-   the request travels to Telegram.
+1. `/me` asks `/api/auth/telegram/start` (POST) for a login request. It puts
+   the request's secret nonce in an httpOnly cookie on **this** browser and
+   returns `t.me/<bot>?start=login_<requestId>` plus a pairing code — only the
+   public half of the request travels to Telegram. The page renders that as an
+   ordinary link, so tapping it hands straight to the Telegram app and leaves
+   the page in place; a redirect would have cost either a stranded tab or the
+   page that is waiting for the confirmation. Asking again while a request is
+   still pending resumes it rather than minting a second one, so a reload
+   cannot leave the browser waiting on a code the bot never quoted.
 2. The webhook answers with a pairing code and a **Підтвердити вхід** button.
    Confirming it sends a `callback_query`, which is authentic because Telegram
    signed the update, so the user id and name on it can be trusted.
@@ -110,9 +115,16 @@ starts it and keeps the session:
    guarded UPDATE (unconsumed, unexpired, approved) and the session cookie is
    set on that response — in the browser that started the login.
 
-The bot must therefore receive `callback_query` updates: `/api/telegram/setup`
-registers `allowed_updates: ["message", "callback_query"]` and re-registers a
-webhook that is missing either one.
+The bot must therefore receive `callback_query` updates. A webhook registered
+before the confirm button existed is subscribed to `message` only, and Telegram
+then drops every button press silently — confirming does nothing, with no error
+anywhere. Three things cover it now, so it needs no manual step:
+
+- the webhook repairs its own subscription when it handles a `/start login_…`,
+  before it sends the button;
+- `/api/telegram/setup` registers `["message", "callback_query"]` and
+  re-registers a webhook that is missing either one;
+- `/api/health` reports `telegram.webhook.deliversLoginConfirmations`.
 
 An earlier version put the login *link* in the chat instead. On a phone that
 link opens Telegram's in-app browser, so the session was created in a WebView

@@ -25,6 +25,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 const {
   createLoginRequest,
   findPendingLoginRequest,
+  findPendingRequestByNonce,
   approveLoginRequest,
   consumeApprovedLoginRequest,
   LOGIN_REQUEST_TTL_MINUTES,
@@ -117,6 +118,30 @@ describe("findPendingLoginRequest", () => {
   it("returns null when nothing matched", async () => {
     select.mockReturnValue(chainReturning(null));
     expect(await findPendingLoginRequest("gone")).toBeNull();
+  });
+});
+
+/**
+ * Reloading /me must resume the login already in flight rather than mint a
+ * second one: the bot's message quotes the first request's code, so a fresh
+ * request would leave the browser polling for something nobody confirmed —
+ * which looks exactly like "the confirm button does nothing".
+ */
+describe("findPendingRequestByNonce", () => {
+  it("finds this browser's request by nonce hash, unspent and unexpired", async () => {
+    const chain = chainReturning({ request_id: "req-1", code: "4242" });
+    select.mockReturnValue(chain);
+
+    expect(await findPendingRequestByNonce("raw-nonce")).toEqual({ requestId: "req-1", code: "4242" });
+    expect(chain.eq).toHaveBeenCalledWith("nonce_hash", expect.stringMatching(/^[0-9a-f]{64}$/));
+    expect(chain.eq.mock.calls[0]?.[1]).not.toBe("raw-nonce");
+    expect(chain.is).toHaveBeenCalledWith("consumed_at", null);
+    expect(chain.gt).toHaveBeenCalledWith("expires_at", expect.any(String));
+  });
+
+  it("returns null once the request is spent, so a new one gets minted", async () => {
+    select.mockReturnValue(chainReturning(null));
+    expect(await findPendingRequestByNonce("spent")).toBeNull();
   });
 });
 
