@@ -2,23 +2,33 @@
 
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import type { DocumentTypeRow } from "@/lib/data/documentTypes";
-import type { DocumentCode, DocumentStatus } from "@/lib/matching/types";
+import type { DocumentCode } from "@/lib/matching/types";
 import { EARLIEST_EVENT_DATE } from "@/lib/validation/reportSchema";
 import { MainButtonBridge } from "@/components/telegram/MainButtonBridge";
 
-type DocState = "" | DocumentStatus;
+/**
+ * Only the two statuses the simplified form collects: the exhaustive
+ * "documents NOT requested" tracking that used to pair with this (and the "do
+ * you remember everything you were asked" question that qualified it) is
+ * gone — reported per feedback as confusing rather than useful.
+ */
+type DocStatus = "requested" | "requested_missing";
+
+interface DocumentRowValue {
+  document_code: DocumentCode | "";
+  status: DocStatus;
+}
 
 interface FormValues {
   event_date: string;
   outcome: string;
-  documents: Record<string, DocState>;
+  documents: DocumentRowValue[];
   appointment_type: string;
   earliest_appointment_offered: string;
   time_at_office: string;
   people_count: string;
-  requested_list_complete: "" | "true" | "false";
   military_obligations_apply: string;
   comment: string;
 }
@@ -32,7 +42,7 @@ const OUTCOMES = [
 
 const APPOINTMENT_TYPES = ["booked_online_icp", "booked_by_email_or_phone", "walk_in"] as const;
 const TIME_AT_OFFICE = ["under_1h", "1_to_3h", "over_3h", "multiple_visits"] as const;
-const DOC_STATUSES = ["requested", "requested_missing", "not_requested"] as const;
+const DOC_STATUSES = ["requested", "requested_missing"] as const;
 
 export interface ReportFormLabels {
   eventDateLabel: string;
@@ -40,21 +50,20 @@ export interface ReportFormLabels {
   outcomeLabel: string;
   outcomeRequired: string;
   outcomes: Record<(typeof OUTCOMES)[number], string>;
-  documentsQuestionCombined: string;
-  documentsHint: string;
-  otherDocumentHint: string;
-  docStatusUnknown: string;
+  documentsSectionTitle: string;
+  documentSelectLabel: string;
+  documentSelectPlaceholder: string;
+  documentStatusLabel: string;
   docStatus: Record<(typeof DOC_STATUSES)[number], string>;
+  addDocumentButton: string;
+  removeDocumentButton: string;
+  otherDocumentHint: string;
   appointmentTypeLabel: string;
   appointmentTypes: Record<(typeof APPOINTMENT_TYPES)[number], string>;
   earliestAppointmentLabel: string;
   timeAtOfficeLabel: string;
   timeAtOffice: Record<(typeof TIME_AT_OFFICE)[number], string>;
   peopleCountLabel: string;
-  requestedListCompleteLabel: string;
-  requestedListCompleteRequired: string;
-  yes: string;
-  no: string;
   militaryQuestionLabel: string;
   militaryOptionYes: string;
   militaryOptionNo: string;
@@ -69,14 +78,25 @@ export interface ReportFormLabels {
   submitting: string;
 }
 
+const EMPTY_ROW: DocumentRowValue = { document_code: "", status: "requested" };
+
 export function ReportForm({
   locationId,
   documentTypes,
   labels,
+  initialValues,
+  reportId,
+  onSaved,
 }: {
   locationId: string;
   documentTypes: DocumentTypeRow[];
   labels: ReportFormLabels;
+  /** Present when editing an existing report; prefills the form. */
+  initialValues?: Partial<FormValues>;
+  /** Present when editing: PATCHes this report instead of POSTing a new one. */
+  reportId?: string;
+  /** Called after a successful edit, instead of the create flow's redirect. */
+  onSaved?: () => void;
 }) {
   const router = useRouter();
   const idPrefix = useId();
@@ -94,30 +114,33 @@ export function ReportForm({
     defaultValues: {
       event_date: "",
       outcome: "",
-      documents: Object.fromEntries(documentTypes.map((d) => [d.code, ""])),
+      documents: [EMPTY_ROW],
       appointment_type: "",
       earliest_appointment_offered: "",
       time_at_office: "",
       people_count: "",
-      requested_list_complete: "",
       military_obligations_apply: "",
       comment: "",
+      ...initialValues,
     },
   });
 
-  const otherStatus = watch(`documents.other` as const);
+  const { fields, append, remove } = useFieldArray({ control, name: "documents" });
+  const documentValues = watch("documents");
+  const pickedElsewhere = (index: number) =>
+    new Set(documentValues.filter((_, i) => i !== index).map((d) => d.document_code).filter(Boolean));
 
   async function onSubmit(values: FormValues) {
     setSubmitError(null);
     setDuplicateLink(null);
     setSubmitting(true);
     try {
-      const documents = Object.entries(values.documents)
-        .filter(([, status]) => status !== "")
-        .map(([document_code, status]) => ({ document_code: document_code as DocumentCode, status: status as DocumentStatus }));
+      const documents = values.documents
+        .filter((d): d is { document_code: DocumentCode; status: DocStatus } => d.document_code !== "")
+        .map((d) => ({ document_code: d.document_code, status: d.status }));
 
-      const res = await fetch("/api/reports", {
-        method: "POST",
+      const res = await fetch(reportId ? `/api/reports/${reportId}` : "/api/reports", {
+        method: reportId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           location_id: locationId,
@@ -128,7 +151,9 @@ export function ReportForm({
           earliest_appointment_offered: values.earliest_appointment_offered || null,
           time_at_office: values.time_at_office || null,
           people_count: values.people_count ? Number(values.people_count) : null,
-          requested_list_complete: values.requested_list_complete === "true",
+          // No longer asked: the exhaustive checklist this used to qualify is
+          // gone, so there is nothing left for "complete" to be relative to.
+          requested_list_complete: true,
           military_obligations_apply: values.military_obligations_apply || null,
           comment: values.comment.trim() || null,
         }),
@@ -149,8 +174,12 @@ export function ReportForm({
         return;
       }
 
-      router.push(`/locations/${locationId}`);
-      router.refresh();
+      if (onSaved) {
+        onSaved();
+      } else {
+        router.push(`/locations/${locationId}`);
+        router.refresh();
+      }
     } catch {
       setSubmitError("generic");
     } finally {
@@ -197,31 +226,72 @@ export function ReportForm({
         ) : null}
       </fieldset>
 
-      <fieldset>
-        <legend className="mb-1 text-sm font-medium">{labels.documentsQuestionCombined}</legend>
-        <p className="mb-2 text-xs text-[var(--muted)]">{labels.documentsHint}</p>
-        <div className="flex flex-col gap-3">
-          {documentTypes.map((d) => (
-            <div key={d.code} className="flex flex-col gap-1 border-b border-[var(--border)] pb-2 text-sm">
-              <span>{d.label_uk}</span>
-              <div className="flex flex-wrap gap-3">
-                <label className="flex items-center gap-1">
-                  <input type="radio" value="" {...register(`documents.${d.code}` as const)} defaultChecked />
-                  {labels.docStatusUnknown}
-                </label>
-                {DOC_STATUSES.map((status) => (
-                  <label key={status} className="flex items-center gap-1">
-                    <input type="radio" value={status} {...register(`documents.${d.code}` as const)} />
-                    {labels.docStatus[status]}
+      <fieldset className="flex flex-col gap-3">
+        <legend className="mb-1 text-sm font-medium">{labels.documentsSectionTitle}</legend>
+        {fields.map((field, index) => {
+          const taken = pickedElsewhere(index);
+          const rowStatus = documentValues[index]?.status;
+          const rowCode = documentValues[index]?.document_code;
+          return (
+            <div key={field.id} className="flex flex-col gap-2 rounded-md border border-[var(--border)] p-3">
+              <div className="flex items-start gap-2">
+                <div className="flex-1">
+                  <label htmlFor={`${idPrefix}-doc-${index}`} className="mb-1 block text-xs font-medium text-[var(--muted)]">
+                    {labels.documentSelectLabel}
                   </label>
-                ))}
+                  <select
+                    id={`${idPrefix}-doc-${index}`}
+                    className="w-full rounded-md border border-[var(--border)] bg-transparent p-2"
+                    {...register(`documents.${index}.document_code` as const)}
+                  >
+                    <option value="">{labels.documentSelectPlaceholder}</option>
+                    {documentTypes
+                      .filter((d) => d.code === rowCode || !taken.has(d.code))
+                      .map((d) => (
+                        <option key={d.code} value={d.code}>
+                          {d.label_uk}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                {fields.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => remove(index)}
+                    aria-label={labels.removeDocumentButton}
+                    className="mt-5 shrink-0 rounded-md border border-[var(--border)] px-2 py-2 text-sm text-[var(--muted)]"
+                  >
+                    ✕
+                  </button>
+                ) : null}
               </div>
+
+              {rowCode ? (
+                <div>
+                  <span className="mb-1 block text-xs font-medium text-[var(--muted)]">{labels.documentStatusLabel}</span>
+                  <div className="flex flex-wrap gap-3 text-sm">
+                    {DOC_STATUSES.map((status) => (
+                      <label key={status} className="flex items-center gap-1">
+                        <input type="radio" value={status} {...register(`documents.${index}.status` as const)} />
+                        {labels.docStatus[status]}
+                      </label>
+                    ))}
+                  </div>
+                  {rowCode === "other" && rowStatus ? (
+                    <p className="mt-1 text-xs text-[var(--muted)]">{labels.otherDocumentHint}</p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
-          ))}
-        </div>
-        {otherStatus === "requested" || otherStatus === "requested_missing" ? (
-          <p className="mt-1 text-xs text-[var(--muted)]">{labels.otherDocumentHint}</p>
-        ) : null}
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => append(EMPTY_ROW)}
+          className="self-start rounded-full border border-[var(--border)] px-3 py-1.5 text-sm font-medium"
+        >
+          {labels.addDocumentButton}
+        </button>
       </fieldset>
 
       <div>
@@ -281,25 +351,6 @@ export function ReportForm({
           {...register("people_count")}
         />
       </div>
-
-      <fieldset aria-describedby={errors.requested_list_complete ? `${idPrefix}-rlc-error` : undefined}>
-        <legend className="mb-1 text-sm font-medium">{labels.requestedListCompleteLabel}</legend>
-        <div className="flex gap-4 text-sm">
-          <label className="flex items-center gap-1">
-            <input type="radio" value="true" {...register("requested_list_complete", { required: true })} />
-            {labels.yes}
-          </label>
-          <label className="flex items-center gap-1">
-            <input type="radio" value="false" {...register("requested_list_complete", { required: true })} />
-            {labels.no}
-          </label>
-        </div>
-        {errors.requested_list_complete ? (
-          <p id={`${idPrefix}-rlc-error`} role="alert" className="mt-1 text-sm text-red-600">
-            {labels.requestedListCompleteRequired}
-          </p>
-        ) : null}
-      </fieldset>
 
       <fieldset>
         <legend className="mb-1 text-sm font-medium">{labels.militaryQuestionLabel}</legend>

@@ -163,10 +163,8 @@
     "multiple_visits": "кілька відвідувань"
   },
   "documentStatus": {
-    "unknown": "Невідомо",
-    "requested": "Просили, було",
-    "requested_missing": "Просили, не було",
-    "not_requested": "Не просили"
+    "requested": "Надав(-ла)",
+    "requested_missing": "Просили, не було"
   },
   "reportForm": {
     "title": "Розкажіть про свій досвід",
@@ -175,15 +173,16 @@
     "eventDateLabel": "Дата візиту або спроби запису",
     "eventDateHint": "Не пізніше сьогодні, не раніше 4 березня 2022 року.",
     "outcomeLabel": "Результат",
-    "requestedDocsQuestion": "Що у вас попросили?",
-    "notRequestedDocsQuestion": "Що НЕ попросили, хоча ви очікували?",
-    "documentsQuestionCombined": "Що у вас попросили / не попросили?",
-    "documentsHint": "Позначте лише те, про що йшлося на візиті. Якщо код не позначений — вважається, що невідомо.",
+    "documentsSectionTitle": "Документи",
+    "documentSelectLabel": "Документ",
+    "documentSelectPlaceholder": "Оберіть документ",
+    "documentStatusLabel": "Що з ним було",
+    "addDocumentButton": "Додати документ",
+    "removeDocumentButton": "Прибрати цей документ",
     "appointmentTypeLabel": "Як записувались",
     "earliestAppointmentLabel": "Найближчий запропонований запис",
     "timeAtOfficeLabel": "Скільки часу зайняло в офісі",
     "peopleCountLabel": "Скільки людей подавали разом",
-    "requestedListCompleteLabel": "Я пам'ятаю все, що в мене попросили",
     "militaryQuestionLabel": "Чи стосуються вас військові обов'язки України?",
     "commentLabel": "Коментар",
     "commentHint": "До 1000 символів, звичайний текст.",
@@ -197,9 +196,7 @@
     "validation": {
       "eventDateFuture": "Дата не може бути в майбутньому.",
       "eventDateTooEarly": "Дата не може бути раніше 4 березня 2022 року.",
-      "documentsRequired": "Позначте хоча б один документ.",
-      "outcomeRequired": "Оберіть результат.",
-      "requestedListCompleteRequired": "Дайте відповідь на це питання."
+      "outcomeRequired": "Оберіть результат."
     }
   },
   "newLocationForm": {

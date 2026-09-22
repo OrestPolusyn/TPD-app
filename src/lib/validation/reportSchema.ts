@@ -27,7 +27,11 @@ export const reportSchema = z
     earliest_appointment_offered: isoDate.nullable().optional(),
     time_at_office: z.enum(["under_1h", "1_to_3h", "over_3h", "multiple_visits"]).nullable().optional(),
     people_count: z.number().int().min(1).max(10).nullable().optional(),
-    requested_list_complete: z.boolean(),
+    // No longer collected from the form — the exhaustive checklist it used to
+    // qualify is gone. Defaults true so a report the client always sends `true`
+    // for (or, for any older caller, omits) lands in the "complete" matching
+    // bucket rather than being silently downgraded to "incomplete".
+    requested_list_complete: z.boolean().optional().default(true),
     military_obligations_apply: z.enum(["yes", "no", "prefer_not_to_say"]).nullable().optional(),
     comment: z.string().trim().max(1000).nullable().optional(),
   })
