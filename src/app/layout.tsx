@@ -30,7 +30,21 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="uk" className={`h-full ${inter.variable}`}>
+    // suppressHydrationWarning: the inline script below sets data-theme on
+    // this element before React hydrates, so the server's markup and the
+    // client's differ here by design. It covers this element's attributes
+    // only, not the tree inside it.
+    <html lang="uk" className={`h-full ${inter.variable}`} suppressHydrationWarning>
+      <head>
+        {/* Applies a stored dark-mode choice before the first paint. Anything
+            later — an effect, a client component — paints light first and then
+            flips, which is the flash this exists to avoid. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem("theme");if(t==="dark"||t==="light"){document.documentElement.dataset.theme=t}}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-[var(--background)] text-[var(--foreground)] antialiased">
         <TelegramProvider>
           <BackButtonBridge />

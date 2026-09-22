@@ -6,6 +6,7 @@ import { getLocationById } from "@/lib/data/locations";
 import { getFlaggedReportsForLocation, getReportDetails, getCommentsForReports } from "@/lib/data/reports";
 import { getActiveDocumentTypes } from "@/lib/data/documentTypes";
 import { OfficialBlock } from "@/components/location/OfficialBlock";
+import { LocationSummary } from "@/components/location/LocationSummary";
 import { CommunityBlock } from "@/components/location/CommunityBlock";
 import { ShareActions } from "@/components/location/ShareActions";
 import { Disclaimer } from "@/components/shared/Disclaimer";
@@ -90,7 +91,13 @@ export default async function LocationPage({ params, searchParams }: LocationPag
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 pb-24 sm:p-6 sm:pb-24">
-      <h1 className="text-2xl font-bold tracking-tight">{location.name}</h1>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">{location.name}</h1>
+        <p className="mt-1 text-sm text-[var(--muted)]">
+          {location.city}, {location.province}
+        </p>
+      </div>
+      <LocationSummary reports={[...reportDetails.values()]} documentLabels={documentLabels} />
       <ShareActions
         webUrl={webUrl}
         telegramUrl={telegramUrl}

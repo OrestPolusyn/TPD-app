@@ -17,7 +17,7 @@ export async function OfficialBlock({ location }: { location: LocationRow }) {
   const tMethod = await getTranslations("appointmentMethods");
 
   return (
-    <section className="rounded-md border border-[var(--border)] p-4">
+    <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
       <h2 className="mb-2 font-medium">{t("officialBlockTitle")}</h2>
 
       {location.verification_status === "conflict" ? (
@@ -29,18 +29,50 @@ export async function OfficialBlock({ location }: { location: LocationRow }) {
       <dl className="flex flex-col gap-2 text-sm">
         <div>
           <dt className="text-[var(--muted)]">{t("addressLabel")}</dt>
-          <dd>{location.address ?? t("addressUnknown")}</dd>
+          <dd>
+            {location.address ?? t("addressUnknown")}
+            {location.address ? (
+              <>
+                {" — "}
+                {/* Hands off to whatever maps app the phone has. Getting there
+                    is the next thing anyone does with an address, and copying
+                    it out by hand on a phone is miserable. */}
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                    `${location.address}, ${location.city}`
+                  )}`}
+                  className="whitespace-nowrap underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {t("openInMaps")}
+                </a>
+              </>
+            ) : null}
+          </dd>
         </div>
         {location.phones.length > 0 ? (
           <div>
             <dt className="text-[var(--muted)]">{t("phoneLabel")}</dt>
-            <dd>{location.phones.join(", ")}</dd>
+            <dd className="flex flex-wrap gap-x-3">
+              {location.phones.map((phone) => (
+                // tel: needs the bare number; the stored value may be spaced
+                // or bracketed for reading.
+                <a key={phone} href={`tel:${phone.replace(/[^+\d]/g, "")}`} className="underline">
+                  {phone}
+                </a>
+              ))}
+            </dd>
           </div>
         ) : null}
         {location.email && !location.email_hidden ? (
           <div>
             <dt className="text-[var(--muted)]">{t("emailLabel")}</dt>
-            <dd>{location.email}</dd>
+            <dd>
+              <a href={`mailto:${location.email}`} className="underline">
+                {location.email}
+              </a>
+            </dd>
           </div>
         ) : location.email_hidden ? (
           <div>

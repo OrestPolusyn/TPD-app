@@ -26,6 +26,12 @@ export function resolveDeepLink(startParam: string | undefined): string | null {
 function applyTheme(webApp: TelegramWebApp) {
   const root = document.documentElement;
   root.setAttribute("data-tg-theme", webApp.colorScheme);
+
+  // A choice made on our own theme toggle outranks Telegram's colours — these
+  // are inline styles, so without this they would win over every stylesheet
+  // and a person who picked light would still get Telegram's dark palette.
+  if (root.dataset.theme) return;
+
   const tp = webApp.themeParams;
   if (tp.bg_color) root.style.setProperty("--background", tp.bg_color);
   if (tp.text_color) root.style.setProperty("--foreground", tp.text_color);

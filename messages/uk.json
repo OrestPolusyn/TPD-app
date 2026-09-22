@@ -136,7 +136,14 @@
     "reportRequestedDocs": "Просили: {docs}",
     "reportMissingDocs": "Просили, але не було: {docs}",
     "noReportsYet": "Про цю локацію ще ніхто не розповідав. Якщо ви тут були — ваш звіт буде першим.",
-    "shareExperienceButton": "Розповісти про свій досвід"
+    "shareExperienceButton": "Розповісти про свій досвід",
+    "summaryTitle": "Коротко про цю локацію",
+    "summaryReports": "звітів",
+    "summaryAccepted": "заяву прийняли",
+    "summaryLatest": "останній звіт",
+    "summaryTopDocs": "Найчастіше просять",
+    "summaryStale": "Останній звіт тут уже досить давній — практика могла змінитись.",
+    "openInMaps": "відкрити в картах"
   },
   "outcomes": {
     "protection_granted": "Захист надано",
@@ -363,5 +370,10 @@
     "loginApprovedToast": "Підтверджено",
     "loginExpired": "Запит на вхід застарів або вже використаний. Почніть вхід на сайті ще раз.",
     "loginExpiredToast": "Запит застарів"
+  },
+  "theme": {
+    "label": "Тема",
+    "light": "Світла",
+    "dark": "Темна"
   }
 }
