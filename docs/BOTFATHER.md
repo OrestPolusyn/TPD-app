@@ -96,12 +96,31 @@ broadcasts, notifications, follow-ups). Only `/start` needs a reply with an
 
 ## 4b. Signing in
 
-Sign-in goes through the bot, and needs no BotFather step at all: `/me` links to
-`t.me/<bot>?start=login`, the webhook mints a one-time token for the Telegram
-user id on that update (authentic, because Telegram signed the update), and the
-bot replies with a link to `/auth/telegram?token=…`. The token is stored hashed,
-expires in 10 minutes and is redeemed by a single guarded UPDATE, so it cannot
-be replayed.
+Sign-in goes through the bot, and needs no BotFather step at all. The browser
+starts it and keeps the session:
+
+1. `/me` links to `/api/auth/telegram/start`, which mints a login request,
+   puts its secret nonce in an httpOnly cookie on **this** browser, and
+   redirects to `t.me/<bot>?start=login_<requestId>` — only the public half of
+   the request travels to Telegram.
+2. The webhook answers with a pairing code and a **Підтвердити вхід** button.
+   Confirming it sends a `callback_query`, which is authentic because Telegram
+   signed the update, so the user id and name on it can be trusted.
+3. `/me` polls `/api/auth/telegram/poll`; the approval is redeemed by a single
+   guarded UPDATE (unconsumed, unexpired, approved) and the session cookie is
+   set on that response — in the browser that started the login.
+
+The bot must therefore receive `callback_query` updates: `/api/telegram/setup`
+registers `allowed_updates: ["message", "callback_query"]` and re-registers a
+webhook that is missing either one.
+
+An earlier version put the login *link* in the chat instead. On a phone that
+link opens Telegram's in-app browser, so the session was created in a WebView
+the person was not browsing from and their real browser could never sign in.
+Nothing in the chat carries a session any more.
+
+Inside the Mini App the silent `initData` exchange still runs and signs people
+in without any of this.
 
 Inside the Mini App the silent `initData` exchange still runs and signs people
 in without any of this.

@@ -348,7 +348,9 @@ Other rules:
 /me                   own reports, comments, suggestions with moderation status; delete account
 /about                disclaimer, sources, legal notice
 /privacy              privacy policy
-/api/auth/telegram    initData + Login Widget validation
+/api/auth/telegram    initData + Login Widget validation (Mini App)
+/api/auth/telegram/start  browser-initiated login: mints a request, sends to the bot
+/api/auth/telegram/poll   redeems the bot's approval into a session in this browser
 ```
 
 ## OUT OF SCOPE

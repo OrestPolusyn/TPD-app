@@ -42,7 +42,9 @@ async function main() {
   const hook = await callTelegram(token, "setWebhook", {
     url: webhookUrl,
     secret_token: deriveWebhookSecret(token),
-    allowed_updates: ["message"],
+    // callback_query too: the login confirm button is a callback, and Telegram
+    // delivers nothing outside this list.
+    allowed_updates: ["message", "callback_query"],
     drop_pending_updates: true,
   });
   console.log(hook.ok ? `Webhook set: ${webhookUrl}` : `setWebhook failed: ${hook.description}`);

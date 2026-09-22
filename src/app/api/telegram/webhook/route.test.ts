@@ -1,7 +1,16 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import type { NextRequest } from "next/server";
-import { POST } from "./route";
 import { deriveWebhookSecret } from "@/lib/telegram/webhookSecret";
+
+const findPendingLoginRequest = vi.fn();
+const approveLoginRequest = vi.fn();
+
+vi.mock("@/lib/telegram/loginRequests", () => ({
+  findPendingLoginRequest: (...args: unknown[]) => findPendingLoginRequest(...args),
+  approveLoginRequest: (...args: unknown[]) => approveLoginRequest(...args),
+}));
+
+const { POST } = await import("./route");
 
 const TOKEN = "123:test-token";
 const SECRET = deriveWebhookSecret(TOKEN);
@@ -74,5 +83,94 @@ describe("POST /api/telegram/webhook", () => {
     vi.stubEnv("TELEGRAM_BOT_TOKEN", "");
     vi.spyOn(console, "error").mockImplementation(() => {});
     expect((await POST(update(START, SECRET))).status).toBe(200);
+  });
+});
+
+/**
+ * The chat's only role in signing in is to approve a request the browser
+ * already made. Nothing here may hand out a session or a link that creates
+ * one — that is what put the session in Telegram's in-app browser before.
+ */
+describe("sign-in confirmation", () => {
+  let calls: { method: string; params: Record<string, unknown> }[];
+
+  beforeEach(() => {
+    vi.stubEnv("TELEGRAM_BOT_TOKEN", TOKEN);
+    calls = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      calls.push({
+        method: String(url).split("/").pop() ?? "",
+        params: JSON.parse(String(init?.body ?? "{}")),
+      });
+      return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json" } });
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it("answers a login deep link with the pairing code and a confirm button", async () => {
+    findPendingLoginRequest.mockResolvedValue({ code: "4242" });
+
+    const res = await POST(update({ message: { chat: { id: 7 }, from: { id: 99 }, text: "/start login_req-abc" } }, SECRET));
+    expect(res.status).toBe(200);
+    expect(findPendingLoginRequest).toHaveBeenCalledWith("req-abc");
+
+    const sent = calls.find((c) => c.method === "sendMessage");
+    expect(sent?.params.text).toContain("4242");
+    const keyboard = sent?.params.reply_markup as { inline_keyboard: { text: string; callback_data?: string; url?: string }[][] };
+    expect(keyboard.inline_keyboard[0][0].callback_data).toBe("login:req-abc");
+    // A url button here would reopen the old bug: tapped in Telegram it signs
+    // in Telegram's own browser, not the one the person started from.
+    expect(keyboard.inline_keyboard[0][0].url).toBeUndefined();
+  });
+
+  it("does not offer a confirm button for a request that is gone", async () => {
+    findPendingLoginRequest.mockResolvedValue(null);
+
+    await POST(update({ message: { chat: { id: 7 }, from: { id: 99 }, text: "/start login_stale" } }, SECRET));
+
+    const sent = calls.find((c) => c.method === "sendMessage");
+    expect(sent?.params.reply_markup).toBeUndefined();
+  });
+
+  it("approves on the confirm button, with the identity Telegram signed", async () => {
+    approveLoginRequest.mockResolvedValue(true);
+
+    const res = await POST(
+      update(
+        {
+          callback_query: {
+            id: "cb-1",
+            from: { id: 99, first_name: "Олена", username: "olena" },
+            data: "login:req-abc",
+            message: { chat: { id: 7 }, message_id: 5 },
+          },
+        },
+        SECRET
+      )
+    );
+    expect(res.status).toBe(200);
+    expect(approveLoginRequest).toHaveBeenCalledWith("req-abc", {
+      id: 99,
+      first_name: "Олена",
+      username: "olena",
+    });
+
+    expect(calls.map((c) => c.method)).toContain("answerCallbackQuery");
+    // Rewriting the message drops the button, so it cannot be tapped twice.
+    expect(calls.find((c) => c.method === "editMessageText")?.params.message_id).toBe(5);
+  });
+
+  it("approves nothing for callback data that is not a login", async () => {
+    await POST(
+      update({ callback_query: { id: "cb-2", from: { id: 99 }, data: "something-else" } }, SECRET)
+    );
+
+    expect(approveLoginRequest).not.toHaveBeenCalled();
+    expect(calls.map((c) => c.method)).toEqual(["answerCallbackQuery"]);
   });
 });

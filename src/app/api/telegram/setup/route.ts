@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { callTelegram, getMe, getWebhookInfo } from "@/lib/telegram/api";
+import { callTelegram, getMe, getWebhookInfo, type WebhookInfo } from "@/lib/telegram/api";
 import { deriveWebhookSecret } from "@/lib/telegram/webhookSecret";
 import { config } from "@/lib/config";
 
@@ -52,10 +52,23 @@ export async function GET() {
   }
 }
 
+/**
+ * Sign-in needs `callback_query`: the confirm button in the bot's login
+ * message is a callback, and Telegram simply does not deliver update types
+ * outside this list — a webhook registered before that button existed
+ * (allowed_updates: ["message"]) makes confirming silently do nothing.
+ */
+const REQUIRED_UPDATES = ["message", "callback_query"];
+
+function deliversLoginUpdates(info: WebhookInfo): boolean {
+  if (!info.allowed_updates) return true;
+  return REQUIRED_UPDATES.every((type) => info.allowed_updates?.includes(type));
+}
+
 async function register(token: string, botUsername: string, webhookUrl: string) {
   const before = await getWebhookInfo(token);
 
-  if (before && before.url === webhookUrl && !before.last_error_message) {
+  if (before && before.url === webhookUrl && !before.last_error_message && deliversLoginUpdates(before)) {
     return NextResponse.json({
       ok: true,
       changed: false,
@@ -68,7 +81,7 @@ async function register(token: string, botUsername: string, webhookUrl: string) 
   const hook = await callTelegram(token, "setWebhook", {
     url: webhookUrl,
     secret_token: deriveWebhookSecret(token),
-    allowed_updates: ["message"],
+    allowed_updates: REQUIRED_UPDATES,
     drop_pending_updates: true,
   });
   if (!hook.ok) {

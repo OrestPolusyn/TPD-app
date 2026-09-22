@@ -14,7 +14,8 @@ import { formatDate } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 interface MePageProps {
-  /** `?login=expired` comes from /auth/telegram when a chat link is stale. */
+  /** `?login=failed` comes from /api/auth/telegram/start when it could not
+   * mint a login request (no bot username configured, or the insert failed). */
   searchParams: Promise<{ login?: string }>;
 }
 
@@ -48,12 +49,17 @@ export default async function MePage({ searchParams }: MePageProps) {
         <RefreshOnReturn />
         <TelegramAuthPanel
           botUsername={botUsername}
-          linkExpired={login === "expired" || login === "failed"}
+          startFailed={login === "failed"}
           labels={{
             checking: t("telegramChecking"),
             openBot: t("openBotButton"),
             openBotHint: t("openBotHint"),
-            linkExpired: t("loginLinkExpired"),
+            waiting: t("loginWaiting"),
+            codeLabel: t("loginCodeLabel"),
+            codeHint: t("loginCodeHint"),
+            timedOut: t("loginTimedOut"),
+            startFailed: t("loginStartFailed"),
+            retry: t("loginRetry"),
             badHash: t("telegramBadHash"),
             expired: t("sessionExpired"),
             otherFailure: t("telegramOtherFailure"),

@@ -50,6 +50,8 @@ export interface WebhookInfo {
   last_error_date?: number;
   last_error_message?: string;
   ip_address?: string;
+  /** Absent means Telegram's default set, which covers every type we need. */
+  allowed_updates?: string[];
 }
 
 /**
