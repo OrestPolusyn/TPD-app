@@ -104,3 +104,31 @@ export async function getCommentsForReports(
   }
   return grouped;
 }
+
+/**
+ * A single own report with its documents, for the edit form. Scoped to
+ * userId explicitly rather than relying on RLS alone, same reasoning as
+ * getOwnReports in src/lib/data/me.ts.
+ */
+export async function getOwnReportForEdit(
+  supabase: SupabaseClient,
+  userId: string,
+  reportId: string
+): Promise<(ReportDetail & { location_id: string }) | null> {
+  const { data: report, error } = await supabase
+    .from("reports")
+    .select("*")
+    .eq("id", reportId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!report) return null;
+
+  const { data: docs, error: docsError } = await supabase
+    .from("report_documents")
+    .select("document_code, status")
+    .eq("report_id", reportId);
+  if (docsError) throw docsError;
+
+  return { ...report, documents: (docs ?? []) as ReportDetail["documents"] };
+}

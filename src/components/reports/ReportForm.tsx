@@ -75,6 +75,8 @@ export interface ReportFormLabels {
   dailyLimitReached: string;
   errorGeneric: string;
   submitButton: string;
+  /** Shown instead of submitButton when reportId is set (editing). */
+  saveButton: string;
   submitting: string;
 }
 
@@ -86,17 +88,14 @@ export function ReportForm({
   labels,
   initialValues,
   reportId,
-  onSaved,
 }: {
   locationId: string;
   documentTypes: DocumentTypeRow[];
   labels: ReportFormLabels;
   /** Present when editing an existing report; prefills the form. */
   initialValues?: Partial<FormValues>;
-  /** Present when editing: PATCHes this report instead of POSTing a new one. */
+  /** Present when editing: PATCHes this report and returns to it instead of POSTing a new one. */
   reportId?: string;
-  /** Called after a successful edit, instead of the create flow's redirect. */
-  onSaved?: () => void;
 }) {
   const router = useRouter();
   const idPrefix = useId();
@@ -174,12 +173,8 @@ export function ReportForm({
         return;
       }
 
-      if (onSaved) {
-        onSaved();
-      } else {
-        router.push(`/locations/${locationId}`);
-        router.refresh();
-      }
+      router.push(reportId ? `/locations/${locationId}#report-${reportId}` : `/locations/${locationId}`);
+      router.refresh();
     } catch {
       setSubmitError("generic");
     } finally {
@@ -414,9 +409,9 @@ export function ReportForm({
         disabled={submitting}
         className="rounded-md bg-[var(--accent)] px-4 py-2 font-medium text-[var(--accent-contrast)] disabled:opacity-50"
       >
-        {submitting ? labels.submitting : labels.submitButton}
+        {submitting ? labels.submitting : reportId ? labels.saveButton : labels.submitButton}
       </button>
-      <MainButtonBridge formId="report-form" text={labels.submitButton} />
+      <MainButtonBridge formId="report-form" text={reportId ? labels.saveButton : labels.submitButton} />
     </form>
   );
 }

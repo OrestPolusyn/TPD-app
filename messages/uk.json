@@ -168,6 +168,7 @@
   },
   "reportForm": {
     "title": "Розкажіть про свій досвід",
+    "editTitle": "Редагувати звіт",
     "chooseLocationFirst": "Оберіть локацію зі списку.",
     "locationLabel": "Локація",
     "eventDateLabel": "Дата візиту або спроби запису",
@@ -189,6 +190,7 @@
     "otherDocumentHint": "Якщо позначили «Інше» — назвіть документ у коментарі.",
     "otherDocumentRequiresComment": "Опишіть документ «Інше» в коментарі.",
     "submitButton": "Надіслати звіт",
+    "saveButton": "Зберегти зміни",
     "duplicateNotice": "Ви вже додавали звіт для цієї локації, процедури та дати.",
     "duplicateNoticeLink": "Переглянути наявний звіт",
     "dailyLimitReached": "Ліміт звітів на сьогодні вичерпано",
@@ -236,6 +238,12 @@
     "myCommentsTitle": "Мої коментарі",
     "mySuggestionsTitle": "Мої пропозиції правок",
     "noItems": "Поки немає записів.",
+    "editButton": "Редагувати",
+    "deleteButton": "Видалити",
+    "saveButton": "Зберегти",
+    "deleteReportConfirm": "Видалити цей звіт? Це незворотньо.",
+    "deleteCommentConfirm": "Видалити цей коментар? Це незворотньо.",
+    "deleteSuggestionConfirm": "Видалити цю пропозицію? Це незворотньо.",
     "moderationStatus": {
       "pending": "На розгляді",
       "published": "Опубліковано",

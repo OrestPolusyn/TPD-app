@@ -7,3 +7,8 @@ export const suggestionSchema = z.object({
 });
 
 export type SuggestionInput = z.infer<typeof suggestionSchema>;
+
+/** Edit payload: just the proposed value, since field/location cannot change. */
+export const suggestedValueSchema = z.object({
+  proposed_value: z.string().trim().min(1).max(500),
+});

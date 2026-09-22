@@ -4,6 +4,9 @@ import { config } from "@/lib/config";
 import { TelegramAuthPanel } from "@/components/auth/TelegramAuthPanel";
 import { RefreshOnReturn } from "@/components/auth/RefreshOnReturn";
 import { DeleteAccountButton } from "@/components/me/DeleteAccountButton";
+import { OwnReportActions } from "@/components/me/OwnReportActions";
+import { OwnCommentActions } from "@/components/me/OwnCommentActions";
+import { OwnSuggestionActions } from "@/components/me/OwnSuggestionActions";
 import { getOwnReports, getOwnComments, getOwnSuggestions } from "@/lib/data/me";
 import { formatDate } from "@/lib/format";
 
@@ -93,6 +96,16 @@ export default async function MePage({ searchParams }: MePageProps) {
                 </a>
                 <span className="ml-2 text-[var(--muted)]">{tOutcomes(r.outcome as Parameters<typeof tOutcomes>[0])}</span>
                 <span className="ml-2 text-xs text-[var(--muted)]">{tMe(`moderationStatus.${r.moderation_status}`)}</span>
+                <OwnReportActions
+                  reportId={r.id}
+                  labels={{
+                    edit: tMe("editButton"),
+                    delete: tMe("deleteButton"),
+                    confirm: tMe("deleteReportConfirm"),
+                    cancel: tCommon("cancel"),
+                    generic: tCommon("errorGeneric"),
+                  }}
+                />
               </li>
             ))}
           </ul>
@@ -109,6 +122,20 @@ export default async function MePage({ searchParams }: MePageProps) {
               <li key={c.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
                 <p className="whitespace-pre-wrap">{c.body}</p>
                 <span className="text-xs text-[var(--muted)]">{tMe(`moderationStatus.${c.moderation_status}`)}</span>
+                <div className="mt-1">
+                  <OwnCommentActions
+                    commentId={c.id}
+                    initialBody={c.body}
+                    labels={{
+                      edit: tMe("editButton"),
+                      delete: tMe("deleteButton"),
+                      save: tMe("saveButton"),
+                      cancel: tCommon("cancel"),
+                      confirmDelete: tMe("deleteCommentConfirm"),
+                      generic: tCommon("errorGeneric"),
+                    }}
+                  />
+                </div>
               </li>
             ))}
           </ul>
@@ -127,6 +154,20 @@ export default async function MePage({ searchParams }: MePageProps) {
                   {suggestionFieldLabels[s.field] ?? s.field}: <span className="line-through">{s.current_value ?? "—"}</span> → {s.proposed_value}
                 </p>
                 <span className="text-xs text-[var(--muted)]">{tMe(`moderationStatus.${s.status}`)}</span>
+                {s.status === "pending" ? (
+                  <OwnSuggestionActions
+                    suggestionId={s.id}
+                    initialValue={s.proposed_value}
+                    labels={{
+                      edit: tMe("editButton"),
+                      delete: tMe("deleteButton"),
+                      save: tMe("saveButton"),
+                      cancel: tCommon("cancel"),
+                      confirmDelete: tMe("deleteSuggestionConfirm"),
+                      generic: tCommon("errorGeneric"),
+                    }}
+                  />
+                ) : null}
               </li>
             ))}
           </ul>

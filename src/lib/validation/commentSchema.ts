@@ -14,3 +14,8 @@ export const flagSchema = z.object({
 });
 
 export type FlagInput = z.infer<typeof flagSchema>;
+
+/** Edit payload: just the body, since report_id/user_id cannot change. */
+export const commentBodySchema = z.object({
+  body: z.string().trim().min(1).max(1000),
+});
