@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getMe, getWebhookInfo } from "@/lib/telegram/api";
+import { getOwnProfile, getOwnReports, getOwnComments, getOwnSuggestions } from "@/lib/data/me";
 
 export const dynamic = "force-dynamic";
 
@@ -166,7 +167,53 @@ export async function GET() {
     telegram,
     supabase,
     restProbe,
+    session: await probeSession(),
     nodeEnv: process.env.NODE_ENV ?? null,
     vercelEnv: process.env.VERCEL_ENV ?? null,
   });
+}
+
+/**
+ * Runs what /me runs, and says which part failed.
+ *
+ * /me threw in production and nowhere else: every one of these queries throws
+ * on error, React strips the message from a production Server Components
+ * render, and the runtime logs were not reachable — so the page could only say
+ * "something went wrong" and name a digest. Opening this while signed in names
+ * the query instead.
+ *
+ * Nothing here is anyone else's: each query is scoped to the caller's own
+ * rows, and only error text is reported, never row contents.
+ */
+async function probeSession() {
+  try {
+    const client = await createClient();
+    const {
+      data: { user },
+      error,
+    } = await client.auth.getUser();
+
+    if (error) return { signedIn: false, authError: error.message, queries: null };
+    if (!user) return { signedIn: false, authError: null, queries: null };
+
+    const probes: [string, () => Promise<unknown>][] = [
+      ["profile", () => getOwnProfile(client, user.id)],
+      ["reports", () => getOwnReports(client, user.id)],
+      ["comments", () => getOwnComments(client, user.id)],
+      ["suggestions", () => getOwnSuggestions(client, user.id)],
+    ];
+
+    const failures: Record<string, string> = {};
+    for (const [name, run] of probes) {
+      try {
+        await run();
+      } catch (err) {
+        failures[name] = err instanceof Error ? err.message : JSON.stringify(err);
+      }
+    }
+
+    return { signedIn: true, authError: null, queries: failures };
+  } catch (err) {
+    return { signedIn: false, authError: err instanceof Error ? err.message : String(err), queries: null };
+  }
 }

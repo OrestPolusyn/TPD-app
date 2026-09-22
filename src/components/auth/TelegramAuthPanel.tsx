@@ -243,7 +243,23 @@ function BrowserLogin({ labels }: { labels: TelegramAuthPanelLabels }) {
 
       <a
         href={request.deepLink}
-        onClick={() => setPhase("waiting")}
+        onClick={(event) => {
+          setPhase("waiting");
+          // Desktop and phone need opposite things here, and getting it wrong
+          // breaks the login either way.
+          //
+          // On a phone the OS hands a t.me address to the Telegram app and
+          // this page stays exactly where it is — a new tab would just be
+          // litter left behind (which is what it was, before).
+          //
+          // A desktop browser has no app to hand to: it navigates this tab to
+          // t.me, taking with it the page that is waiting for the
+          // confirmation, so the login can never complete. There it opens in
+          // its own tab and this one keeps polling.
+          if (window.matchMedia("(pointer: coarse)").matches) return;
+          event.preventDefault();
+          window.open(request.deepLink, "_blank", "noopener");
+        }}
         className="rounded-full border border-[var(--accent)] px-4 py-2 font-medium text-[var(--accent)] no-underline transition-colors hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]"
       >
         {phase === "ready" ? labels.openBot : labels.retry}
