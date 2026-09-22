@@ -8,44 +8,110 @@
      is how the province and office pickers looked on iOS. */
   color-scheme: light dark;
 
-  --background: #ffffff;
-  --surface: #f6f7f9;
-  --foreground: #17181c;
-  --accent: #2f6fed;
+  /* Page canvas is a soft neutral gray, cards are pure white and pop off it
+     with a shadow — the Facebook/Telegram feed pattern, replacing the old
+     flat all-one-surface look. */
+  --background: #f4f5f7;
+  --surface: #ffffff;
+  --surface-sunken: #eef0f3;
+  --foreground: #14151a;
+  --muted: #656b76;
+  --muted-subtle: #9aa0ab;
+  --border: #e3e5ea;
+  --border-strong: #cdd1d9;
+
+  --accent: #3762e0;
+  --accent-hover: #2b4ec2;
   --accent-contrast: #ffffff;
-  --border: #d8dbe0;
-  --muted: #5b6270;
+  --accent-soft: #ebf0ff;
+
+  --success: #157f3c;
+  --success-bg: #e9f9ee;
+  --success-border: #b7e9c6;
+  --warning: #a15c07;
+  --warning-bg: #fff6e5;
+  --warning-border: #f0d191;
+  --danger: #c62828;
+  --danger-bg: #fdecec;
+  --danger-border: #f3c2c2;
+
   --highlight-bg: #fff4d6;
   --highlight-border: #e8b93b;
+
+  --shadow-sm: 0 1px 2px rgba(20, 21, 26, 0.06);
+  --shadow-md: 0 6px 20px rgba(20, 21, 26, 0.08);
+  --shadow-lg: 0 16px 40px rgba(20, 21, 26, 0.14);
+
+  --radius-sm: 0.625rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #121316;
-    --surface: #1b1d21;
+    --background: #0e1013;
+    --surface: #1a1c21;
+    --surface-sunken: #131519;
     --foreground: #f2f3f5;
-    --border: #34363c;
-    --muted: #a3a9b3;
+    --muted: #9aa0ab;
+    --muted-subtle: #6b7280;
+    --border: #2b2e35;
+    --border-strong: #3a3d46;
+
+    --accent: #6d93ff;
+    --accent-hover: #8aa8ff;
+    --accent-soft: #1c2542;
+
+    --success: #4fce85;
+    --success-bg: #10281a;
+    --success-border: #1e4530;
+    --warning: #f0b94a;
+    --warning-bg: #2c2109;
+    --warning-border: #4a3813;
+    --danger: #f38080;
+    --danger-bg: #2c1414;
+    --danger-border: #4a1f1f;
+
     --highlight-bg: #3a331a;
     --highlight-border: #cb9a2c;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.5);
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 /* Telegram Mini App theme override: TelegramProvider sets these on :root when
    window.Telegram.WebApp.themeParams is available, taking priority over the
-   prefers-color-scheme media query above. */
+   prefers-color-scheme media query above. Sets the full token set (not just
+   background/foreground) so cards/borders/badges stay coherent instead of
+   mixing a light surface into a dark background or vice versa. */
 :root[data-tg-theme="dark"] {
   color-scheme: dark;
   --background: #17212b;
+  --surface: #1e2730;
+  --surface-sunken: #131a21;
   --foreground: #f5f5f5;
+  --muted: #9aa0ab;
+  --muted-subtle: #6b7280;
+  --border: #2c3843;
+  --border-strong: #3b4854;
+  --accent-soft: #1c2542;
 }
 :root[data-tg-theme="light"] {
   color-scheme: light;
-  --background: #ffffff;
+  --background: #f4f5f7;
+  --surface: #ffffff;
+  --surface-sunken: #eef0f3;
   --foreground: #222222;
+  --muted: #656b76;
+  --muted-subtle: #9aa0ab;
+  --border: #e3e5ea;
+  --border-strong: #cdd1d9;
 }

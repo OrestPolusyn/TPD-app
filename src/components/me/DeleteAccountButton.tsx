@@ -33,17 +33,17 @@ export function DeleteAccountButton({
 
   if (!confirming) {
     return (
-      <button type="button" onClick={() => setConfirming(true)} className="rounded-md border border-red-600 px-3 py-1.5 text-sm font-medium text-red-600">
+      <button type="button" onClick={() => setConfirming(true)} className="rounded-md border border-[var(--danger)] px-3 py-1.5 text-sm font-medium text-[var(--danger)]">
         {labels.button}
       </button>
     );
   }
 
   return (
-    <div role="alertdialog" aria-label={labels.confirmTitle} className="rounded-md border border-red-600 p-3 text-sm">
+    <div role="alertdialog" aria-label={labels.confirmTitle} className="rounded-md border border-[var(--danger)] p-3 text-sm">
       <p className="font-medium">{labels.confirmTitle}</p>
       <p className="mt-1">{labels.confirmBody}</p>
-      {error ? <p className="mt-1 text-red-600">{labels.generic}</p> : null}
+      {error ? <p className="mt-1 text-[var(--danger)]">{labels.generic}</p> : null}
       <div className="mt-2 flex gap-2">
         <button
           type="button"

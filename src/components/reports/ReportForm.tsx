@@ -198,7 +198,7 @@ export function ReportForm({
           {...register("event_date", { required: true })}
         />
         {errors.event_date ? (
-          <p id={`${idPrefix}-event_date-error`} role="alert" className="mt-1 text-sm text-red-600">
+          <p id={`${idPrefix}-event_date-error`} role="alert" className="mt-1 text-sm text-[var(--danger)]">
             {labels.requiredField}
           </p>
         ) : null}
@@ -215,7 +215,7 @@ export function ReportForm({
           ))}
         </div>
         {errors.outcome ? (
-          <p id={`${idPrefix}-outcome-error`} role="alert" className="mt-1 text-sm text-red-600">
+          <p id={`${idPrefix}-outcome-error`} role="alert" className="mt-1 text-sm text-[var(--danger)]">
             {labels.outcomeRequired}
           </p>
         ) : null}
@@ -386,7 +386,7 @@ export function ReportForm({
       </div>
 
       {submitError === "duplicate" ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-[var(--danger)]">
           {labels.duplicateNotice}{" "}
           {duplicateLink ? (
             <a href={duplicateLink} className="underline">
@@ -395,11 +395,11 @@ export function ReportForm({
           ) : null}
         </p>
       ) : submitError === "daily_limit" ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-[var(--danger)]">
           {labels.dailyLimitReached}
         </p>
       ) : submitError === "generic" ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-[var(--danger)]">
           {labels.errorGeneric}
         </p>
       ) : null}

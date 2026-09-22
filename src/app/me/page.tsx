@@ -4,10 +4,11 @@ import { config } from "@/lib/config";
 import { TelegramAuthPanel } from "@/components/auth/TelegramAuthPanel";
 import { RefreshOnReturn } from "@/components/auth/RefreshOnReturn";
 import { DeleteAccountButton } from "@/components/me/DeleteAccountButton";
+import { DisplayNameEditor } from "@/components/me/DisplayNameEditor";
 import { OwnReportActions } from "@/components/me/OwnReportActions";
 import { OwnCommentActions } from "@/components/me/OwnCommentActions";
 import { OwnSuggestionActions } from "@/components/me/OwnSuggestionActions";
-import { getOwnReports, getOwnComments, getOwnSuggestions } from "@/lib/data/me";
+import { getOwnReports, getOwnComments, getOwnSuggestions, getOwnProfile } from "@/lib/data/me";
 import { formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -73,15 +74,31 @@ export default async function MePage({ searchParams }: MePageProps) {
     );
   }
 
-  const [reports, comments, suggestions] = await Promise.all([
+  const [reports, comments, suggestions, profile] = await Promise.all([
     getOwnReports(supabase, user.id),
     getOwnComments(supabase, user.id),
     getOwnSuggestions(supabase, user.id),
+    getOwnProfile(supabase, user.id),
   ]);
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 p-4 sm:p-6">
       <h1 className="text-2xl font-bold tracking-tight">{tMe("title")}</h1>
+
+      <DisplayNameEditor
+        currentDisplayName={profile.display_name}
+        fallbackName={profile.telegram_first_name ?? tMe("genericUser")}
+        avatarUrl={profile.avatar_url}
+        labels={{
+          placeholder: tMe("nicknamePlaceholder"),
+          hint: tMe("nicknameHint"),
+          edit: tMe("nicknameEditButton"),
+          save: tMe("nicknameSaveButton"),
+          cancel: tCommon("cancel"),
+          tooLong: tMe("nicknameTooLong"),
+          generic: tCommon("errorGeneric"),
+        }}
+      />
 
       <section>
         <h2 className="mb-2 font-medium">{tMe("myReportsTitle")}</h2>

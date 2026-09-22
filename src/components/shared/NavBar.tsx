@@ -47,7 +47,7 @@ export async function NavBar() {
           </summary>
           <nav
             aria-label={t("home")}
-            className="absolute right-0 z-20 mt-2 flex w-56 flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-sm shadow-lg"
+            className="absolute right-0 z-20 mt-2 flex w-56 flex-col gap-1 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3 text-sm shadow-[var(--shadow-lg)]"
           >
             {links.map((link) => (
               <Link key={link.href} href={link.href} className={`${linkClassName} rounded-md px-2 py-1.5`}>

@@ -43,7 +43,7 @@ export function OwnReportActions({
       {confirming ? (
         <>
           <span>{labels.confirm}</span>
-          <button type="button" onClick={handleDelete} disabled={submitting} className="text-red-600 underline disabled:opacity-50">
+          <button type="button" onClick={handleDelete} disabled={submitting} className="text-[var(--danger)] underline disabled:opacity-50">
             {labels.delete}
           </button>
           <button type="button" onClick={() => setConfirming(false)} className="underline">
@@ -51,11 +51,11 @@ export function OwnReportActions({
           </button>
         </>
       ) : (
-        <button type="button" onClick={() => setConfirming(true)} className="text-red-600 underline">
+        <button type="button" onClick={() => setConfirming(true)} className="text-[var(--danger)] underline">
           {labels.delete}
         </button>
       )}
-      {error ? <span className="text-red-600">{labels.generic}</span> : null}
+      {error ? <span className="text-[var(--danger)]">{labels.generic}</span> : null}
     </div>
   );
 }

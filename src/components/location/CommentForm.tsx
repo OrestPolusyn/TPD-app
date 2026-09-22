@@ -55,7 +55,7 @@ export function CommentForm({
         className="w-full rounded-md border border-[var(--border)] bg-transparent p-1.5 text-sm"
       />
       {error ? (
-        <p role="alert" className="text-xs text-red-600">
+        <p role="alert" className="text-xs text-[var(--danger)]">
           {labels.generic}
         </p>
       ) : null}

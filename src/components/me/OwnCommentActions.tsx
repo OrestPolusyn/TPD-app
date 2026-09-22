@@ -81,7 +81,7 @@ export function OwnCommentActions({
           rows={2}
           className="w-full rounded-md border border-[var(--border)] bg-transparent p-1.5 text-sm"
         />
-        {error ? <p className="text-xs text-red-600">{labels.generic}</p> : null}
+        {error ? <p className="text-xs text-[var(--danger)]">{labels.generic}</p> : null}
         <div className="flex gap-3 text-xs">
           <button type="button" onClick={handleSave} disabled={submitting} className="underline disabled:opacity-50">
             {labels.save}
@@ -109,7 +109,7 @@ export function OwnCommentActions({
       {mode === "confirmDelete" ? (
         <>
           <span>{labels.confirmDelete}</span>
-          <button type="button" onClick={handleDelete} disabled={submitting} className="text-red-600 underline disabled:opacity-50">
+          <button type="button" onClick={handleDelete} disabled={submitting} className="text-[var(--danger)] underline disabled:opacity-50">
             {labels.delete}
           </button>
           <button type="button" onClick={() => setMode("view")} className="underline">
@@ -117,11 +117,11 @@ export function OwnCommentActions({
           </button>
         </>
       ) : (
-        <button type="button" onClick={() => setMode("confirmDelete")} className="text-red-600 underline">
+        <button type="button" onClick={() => setMode("confirmDelete")} className="text-[var(--danger)] underline">
           {labels.delete}
         </button>
       )}
-      {error && mode === "view" ? <span className="text-red-600">{labels.generic}</span> : null}
+      {error && mode === "view" ? <span className="text-[var(--danger)]">{labels.generic}</span> : null}
     </div>
   );
 }

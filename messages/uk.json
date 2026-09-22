@@ -135,7 +135,6 @@
     "reportEarliestAppointment": "Найближчий запис: {date}",
     "reportRequestedDocs": "Просили: {docs}",
     "reportMissingDocs": "Просили, але не було: {docs}",
-    "author": "Користувач",
     "noReportsYet": "Про цю локацію ще ніхто не розповідав. Якщо ви тут були — ваш звіт буде першим.",
     "shareExperienceButton": "Розповісти про свій досвід"
   },
@@ -224,6 +223,12 @@
   },
   "me": {
     "title": "Мій кабінет",
+    "genericUser": "Користувач",
+    "nicknamePlaceholder": "Псевдонім (як показувати вас іншим)",
+    "nicknameHint": "Це ім'я бачитимуть інші під вашими звітами й коментарями. Порожнє поле — і ми покажемо ваше ім'я з Telegram.",
+    "nicknameEditButton": "Змінити псевдонім",
+    "nicknameSaveButton": "Зберегти псевдонім",
+    "nicknameTooLong": "Псевдонім задовгий (максимум 60 символів).",
     "myReportsTitle": "Мої звіти",
     "myCommentsTitle": "Мої коментарі",
     "mySuggestionsTitle": "Мої пропозиції правок",

@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import type { LocationPageData, MatchedReport } from "@/lib/matching/types";
 import type { ReportDetail, CommentRow } from "@/lib/data/reports";
 import { OutcomeLabel } from "@/components/shared/OutcomeLabel";
+import { Avatar } from "@/components/shared/Avatar";
 import { FlagButton } from "@/components/location/FlagButton";
 import { CommentForm } from "@/components/location/CommentForm";
 import { formatDate } from "@/lib/format";
@@ -43,12 +44,19 @@ async function ReportCard({
   };
 
   return (
-    <li id={`report-${detail.id}`} className="rounded-md border border-[var(--border)] p-3 text-sm">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <OutcomeLabel outcome={detail.outcome} />
-          <span className="text-[var(--muted)]">{t("reportDate", { date: formatDate(detail.event_date) })}</span>
-        </div>
+    <li
+      id={`report-${detail.id}`}
+      className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3 text-sm shadow-[var(--shadow-sm)]"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <Avatar name={detail.author_name} photoUrl={detail.author_avatar_url} size={28} />
+        <span className="font-medium">{detail.author_name}</span>
+        <span className="text-[var(--muted)]">·</span>
+        <span className="text-[var(--muted)]">{t("reportDate", { date: formatDate(detail.event_date) })}</span>
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <OutcomeLabel outcome={detail.outcome} />
         <FlagButton targetType="report" targetId={detail.id} labels={flagLabels} />
       </div>
 
@@ -70,18 +78,19 @@ async function ReportCard({
 
       {detail.comment ? <p className="mt-2 whitespace-pre-wrap">{detail.comment}</p> : null}
 
-      <p className="mt-2 text-xs text-[var(--muted)]">{t("author")}</p>
-
       {comments.length > 0 ? (
-        <ul className="mt-2 flex flex-col gap-1 border-t border-[var(--border)] pt-2">
+        <ul className="mt-2 flex flex-col gap-2 border-t border-[var(--border)] pt-2">
           {comments
             .filter((c) => c.moderation_status === "published" || c.moderation_status === "flagged")
             .map((c) => (
               <li key={c.id} className="flex items-start justify-between gap-2 text-sm">
-                <span>
-                  <span className="whitespace-pre-wrap">{c.body}</span>
-                  <span className="ml-2 text-xs text-[var(--muted)]">{t("author")}</span>
-                </span>
+                <div className="flex items-start gap-2">
+                  <Avatar name={c.author_name} photoUrl={c.author_avatar_url} size={22} />
+                  <span>
+                    <span className="mr-1.5 font-medium">{c.author_name}</span>
+                    <span className="whitespace-pre-wrap">{c.body}</span>
+                  </span>
+                </div>
                 <FlagButton targetType="comment" targetId={c.id} labels={flagLabels} />
               </li>
             ))}
