@@ -13,6 +13,10 @@ export interface TelegramUser {
 export interface ValidatedTelegramIdentity {
   telegramUserId: number;
   authDate: number;
+  /** Cached for display (report/comment author name, avatar) — never used for auth. */
+  firstName?: string;
+  username?: string;
+  photoUrl?: string;
 }
 
 export type ValidationResult =
@@ -79,7 +83,10 @@ export function validateInitData(initData: string, botToken: string): Validation
     return { ok: false, reason: "malformed" };
   }
 
-  return { ok: true, identity: { telegramUserId: user.id, authDate } };
+  return {
+    ok: true,
+    identity: { telegramUserId: user.id, authDate, firstName: user.first_name, username: user.username, photoUrl: user.photo_url },
+  };
 }
 
 function timingSafeEqualHex(a: string, b: string): boolean {

@@ -9,6 +9,11 @@ const DEV_TELEGRAM_IDS: Record<string, number> = {
   "2": -2,
 };
 
+const DEV_NAMES: Record<string, string> = {
+  "1": "Тестовий користувач 1",
+  "2": "Тестовий користувач 2",
+};
+
 /**
  * GET /api/auth/dev?user=1|2 — signs in as a fixed dev user without needing a
  * real Telegram bot, for local testing. Only enabled when
@@ -27,7 +32,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "unknown_dev_user" }, { status: 400 });
   }
 
-  const result = await signInTelegramUser(telegramId);
+  const result = await signInTelegramUser(telegramId, { firstName: DEV_NAMES[user as string] });
   if (!result.ok) {
     return NextResponse.json({ error: "sign_in_failed" }, { status: 500 });
   }

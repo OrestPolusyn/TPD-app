@@ -40,7 +40,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: validation.reason }, { status: 401 });
   }
 
-  const result = await signInTelegramUser(validation.identity.telegramUserId);
+  const result = await signInTelegramUser(validation.identity.telegramUserId, {
+    firstName: validation.identity.firstName,
+    username: validation.identity.username,
+    photoUrl: validation.identity.photoUrl,
+  });
   if (!result.ok) {
     return NextResponse.json({ error: "sign_in_failed" }, { status: 500 });
   }

@@ -48,7 +48,16 @@ export function validateLoginWidget(payload: LoginWidgetPayload, botToken: strin
     return { ok: false, reason: "expired" };
   }
 
-  return { ok: true, identity: { telegramUserId: rest.id, authDate: rest.auth_date } };
+  return {
+    ok: true,
+    identity: {
+      telegramUserId: rest.id,
+      authDate: rest.auth_date,
+      firstName: rest.first_name,
+      username: rest.username,
+      photoUrl: rest.photo_url,
+    },
+  };
 }
 
 function timingSafeEqualHex(a: string, b: string): boolean {

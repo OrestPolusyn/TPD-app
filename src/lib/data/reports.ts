@@ -22,6 +22,42 @@ export interface ReportDetail {
   comment: string | null;
   moderation_status: ModerationStatus;
   documents: { document_code: DocumentCode; status: DocumentStatus }[];
+  author_name: string;
+  author_avatar_url: string | null;
+}
+
+export interface PublicProfile {
+  display_name: string;
+  avatar_url: string | null;
+}
+
+/**
+ * Name + avatar for a set of user ids, via the public_profiles view — the
+ * only path that can read another user's identity at all (profiles itself is
+ * owner-only RLS; this view exposes just id/display_name/avatar_url, see
+ * supabase/migrations/0012). A missing id (deleted account) falls back to the
+ * same generic label the DB uses, so callers never need a null check.
+ */
+export async function getPublicProfiles(
+  supabase: SupabaseClient,
+  userIds: string[]
+): Promise<Map<string, PublicProfile>> {
+  const result = new Map<string, PublicProfile>();
+  const uniqueIds = [...new Set(userIds)];
+  if (uniqueIds.length === 0) return result;
+
+  const { data, error } = await supabase.from("public_profiles").select("id, display_name, avatar_url").in("id", uniqueIds);
+  if (error) throw error;
+
+  for (const p of data ?? []) {
+    result.set(p.id, { display_name: p.display_name, avatar_url: p.avatar_url });
+  }
+  return result;
+}
+
+function authorOf(profiles: Map<string, PublicProfile>, userId: string): { author_name: string; author_avatar_url: string | null } {
+  const profile = profiles.get(userId);
+  return { author_name: profile?.display_name ?? "Користувач", author_avatar_url: profile?.avatar_url ?? null };
 }
 
 /** Full report rows + their document entries, for rendering report cards. */
@@ -46,8 +82,10 @@ export async function getReportDetails(
     docsByReport.set(d.report_id, list);
   }
 
+  const profiles = await getPublicProfiles(supabase, (reports ?? []).map((r) => r.user_id));
+
   for (const r of reports ?? []) {
-    result.set(r.id, { ...r, documents: docsByReport.get(r.id) ?? [] });
+    result.set(r.id, { ...r, documents: docsByReport.get(r.id) ?? [], ...authorOf(profiles, r.user_id) });
   }
   return result;
 }
@@ -81,6 +119,8 @@ export interface CommentRow {
   body: string;
   moderation_status: ModerationStatus;
   created_at: string;
+  author_name: string;
+  author_avatar_url: string | null;
 }
 
 export async function getCommentsForReports(
@@ -97,9 +137,12 @@ export async function getCommentsForReports(
     .order("created_at", { ascending: true });
   if (error) throw error;
 
-  for (const c of (data ?? []) as CommentRow[]) {
+  const rows = (data ?? []) as (CommentRow & { user_id: string })[];
+  const profiles = await getPublicProfiles(supabase, rows.map((c) => c.user_id));
+
+  for (const c of rows) {
     const list = grouped.get(c.report_id) ?? [];
-    list.push(c);
+    list.push({ ...c, ...authorOf(profiles, c.user_id) });
     grouped.set(c.report_id, list);
   }
   return grouped;

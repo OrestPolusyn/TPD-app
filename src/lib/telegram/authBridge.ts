@@ -34,7 +34,16 @@ export type AuthBridgeResult = { ok: true } | { ok: false; error: string };
  *    This issues a real Supabase Auth session and writes its cookies onto the
  *    Next.js response via the same cookie adapter used everywhere else.
  */
-export async function signInTelegramUser(telegramUserId: number): Promise<AuthBridgeResult> {
+export interface TelegramDisplayProfile {
+  firstName?: string;
+  username?: string;
+  photoUrl?: string;
+}
+
+export async function signInTelegramUser(
+  telegramUserId: number,
+  displayProfile?: TelegramDisplayProfile
+): Promise<AuthBridgeResult> {
   const admin = createAdminClient();
   const email = syntheticEmailFor(telegramUserId);
 
@@ -46,9 +55,25 @@ export async function signInTelegramUser(telegramUserId: number): Promise<AuthBr
     return { ok: false, error: linkError?.message ?? "generateLink returned no hashed_token" };
   }
 
-  const { error: profileError } = await admin
-    .from("profiles")
-    .upsert({ id: linkData.user.id, telegram_user_id: telegramUserId }, { onConflict: "id" });
+  // Refreshed on every login so a changed Telegram name/photo catches up here
+  // too — deliberately never touches `display_name`, the person's own
+  // override (set via set_own_display_name), which this must not clobber.
+  //
+  // The fields below are set to `undefined`, not `null`, when Telegram didn't
+  // send one this time (e.g. a login widget response with no photo_url, or a
+  // user with no profile photo at all) — JSON.stringify drops an `undefined`
+  // key entirely, so PostgREST's upsert leaves that column exactly as it was
+  // rather than blanking out a name/avatar that a *previous* login did supply.
+  const { error: profileError } = await admin.from("profiles").upsert(
+    {
+      id: linkData.user.id,
+      telegram_user_id: telegramUserId,
+      telegram_first_name: displayProfile?.firstName,
+      telegram_username: displayProfile?.username,
+      avatar_url: displayProfile?.photoUrl,
+    },
+    { onConflict: "id" }
+  );
   if (profileError) {
     return { ok: false, error: profileError.message };
   }
