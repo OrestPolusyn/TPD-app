@@ -148,6 +148,68 @@ export async function getCommentsForReports(
   return grouped;
 }
 
+export interface RecentReport {
+  id: string;
+  location_id: string;
+  location_name: string;
+  event_date: string;
+  outcome: ReportOutcome;
+  comment: string | null;
+  author_name: string;
+  author_avatar_url: string | null;
+}
+
+/**
+ * The newest published reports across every location.
+ *
+ * Ordered by created_at, not event_date: this answers "what has been added
+ * since I last looked", and someone can file a report about a visit from
+ * months ago.
+ */
+export async function getRecentReports(supabase: SupabaseClient, limit = 25): Promise<RecentReport[]> {
+  const { data, error } = await supabase
+    .from("reports")
+    .select("id, location_id, event_date, outcome, comment, user_id")
+    .eq("moderation_status", "published")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+
+  const rows = (data ?? []) as (Omit<RecentReport, "location_name" | "author_name" | "author_avatar_url"> & {
+    user_id: string;
+  })[];
+  if (rows.length === 0) return [];
+
+  const [profiles, { data: locations, error: locationsError }] = await Promise.all([
+    getPublicProfiles(supabase, rows.map((r) => r.user_id)),
+    supabase.from("locations").select("id, name").in("id", [...new Set(rows.map((r) => r.location_id))]),
+  ]);
+  if (locationsError) throw locationsError;
+
+  const names = new Map((locations ?? []).map((l) => [l.id, l.name as string]));
+
+  return rows.map((r) => ({
+    id: r.id,
+    location_id: r.location_id,
+    location_name: names.get(r.location_id) ?? r.location_id,
+    event_date: r.event_date,
+    outcome: r.outcome,
+    comment: r.comment,
+    ...authorOf(profiles, r.user_id),
+  }));
+}
+
+/** How many published reports arrived after a given moment. */
+export async function countReportsSince(supabase: SupabaseClient, sinceIso: string): Promise<number> {
+  const { count, error } = await supabase
+    .from("reports")
+    .select("id", { count: "exact", head: true })
+    .eq("moderation_status", "published")
+    .gt("created_at", sinceIso);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 /**
  * A single own report with its documents, for the edit form. Scoped to
  * userId explicitly rather than relying on RLS alone, same reasoning as

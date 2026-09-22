@@ -40,7 +40,7 @@ export function FaqAccordion({ items, labels }: { items: FaqItem[]; labels: FaqA
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={labels.searchPlaceholder}
-          className="w-full rounded-md border border-[var(--border)] bg-transparent p-2"
+          className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-2"
         />
       </div>
 

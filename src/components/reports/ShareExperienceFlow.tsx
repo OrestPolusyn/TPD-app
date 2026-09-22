@@ -47,7 +47,7 @@ export function ShareExperienceFlow({
             setProvinceSlug(e.target.value);
             setLocationId("");
           }}
-          className="w-full rounded-md border border-[var(--border)] bg-transparent p-2"
+          className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-2"
         >
           <option value="" disabled>
             {pickerLabels.provincePlaceholder}
@@ -69,7 +69,7 @@ export function ShareExperienceFlow({
           value={locationId}
           disabled={!provinceSlug}
           onChange={(e) => setLocationId(e.target.value)}
-          className="w-full rounded-md border border-[var(--border)] bg-transparent p-2 disabled:opacity-50"
+          className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-2 disabled:opacity-50"
         >
           <option value="" disabled>
             {pickerLabels.officePlaceholder}

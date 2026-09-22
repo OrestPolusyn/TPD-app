@@ -72,7 +72,7 @@ export function DisplayNameEditor({
               onChange={(e) => setValue(e.target.value)}
               maxLength={60}
               placeholder={labels.placeholder}
-              className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-2.5 py-1.5 text-sm"
+              className="w-full rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface)] px-2.5 py-1.5 text-sm"
               autoFocus
             />
             <p className="text-xs text-[var(--muted)]">{labels.hint}</p>

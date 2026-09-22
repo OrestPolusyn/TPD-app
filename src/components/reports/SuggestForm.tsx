@@ -74,7 +74,7 @@ export function SuggestForm({ location, labels }: { location: LocationRow; label
         <label htmlFor={`${idPrefix}-field`} className="mb-1 block text-sm font-medium">
           {labels.fieldLabel}
         </label>
-        <select id={`${idPrefix}-field`} className="w-full rounded-md border border-[var(--border)] bg-transparent p-2" {...register("field")}>
+        <select id={`${idPrefix}-field`} className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-2" {...register("field")}>
           {(Object.keys(labels.fieldNames) as Field[]).map((f) => (
             <option key={f} value={f}>
               {labels.fieldNames[f]}
@@ -91,7 +91,7 @@ export function SuggestForm({ location, labels }: { location: LocationRow; label
         <label htmlFor={`${idPrefix}-value`} className="mb-1 block text-sm font-medium">
           {labels.proposedValueLabel}
         </label>
-        <input id={`${idPrefix}-value`} className="w-full rounded-md border border-[var(--border)] bg-transparent p-2" {...register("proposed_value", { required: true })} />
+        <input id={`${idPrefix}-value`} className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-2" {...register("proposed_value", { required: true })} />
       </div>
 
       {error ? (

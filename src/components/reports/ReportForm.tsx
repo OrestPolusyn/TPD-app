@@ -194,7 +194,7 @@ export function ReportForm({
           min={EARLIEST_EVENT_DATE}
           max={new Date().toISOString().slice(0, 10)}
           aria-describedby={errors.event_date ? `${idPrefix}-event_date-error` : undefined}
-          className="w-full rounded-md border border-[var(--border)] bg-transparent p-2"
+          className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-2"
           {...register("event_date", { required: true })}
         />
         {errors.event_date ? (
@@ -236,7 +236,7 @@ export function ReportForm({
                   </label>
                   <select
                     id={`${idPrefix}-doc-${index}`}
-                    className="w-full rounded-md border border-[var(--border)] bg-transparent p-2"
+                    className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-2"
                     {...register(`documents.${index}.document_code` as const)}
                   >
                     <option value="">{labels.documentSelectPlaceholder}</option>
@@ -295,7 +295,7 @@ export function ReportForm({
         </label>
         <select
           id={`${idPrefix}-appointment_type`}
-          className="w-full rounded-md border border-[var(--border)] bg-transparent p-2"
+          className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-2"
           {...register("appointment_type")}
         >
           <option value="">—</option>
@@ -314,7 +314,7 @@ export function ReportForm({
         <input
           id={`${idPrefix}-earliest`}
           type="date"
-          className="w-full rounded-md border border-[var(--border)] bg-transparent p-2"
+          className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-2"
           {...register("earliest_appointment_offered")}
         />
       </div>
@@ -323,7 +323,7 @@ export function ReportForm({
         <label htmlFor={`${idPrefix}-time`} className="mb-1 block text-sm font-medium">
           {labels.timeAtOfficeLabel}
         </label>
-        <select id={`${idPrefix}-time`} className="w-full rounded-md border border-[var(--border)] bg-transparent p-2" {...register("time_at_office")}>
+        <select id={`${idPrefix}-time`} className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-2" {...register("time_at_office")}>
           <option value="">—</option>
           {TIME_AT_OFFICE.map((k) => (
             <option key={k} value={k}>
@@ -342,7 +342,7 @@ export function ReportForm({
           type="number"
           min={1}
           max={10}
-          className="w-24 rounded-md border border-[var(--border)] bg-transparent p-2"
+          className="w-24 rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-2"
           {...register("people_count")}
         />
       </div>
@@ -378,7 +378,7 @@ export function ReportForm({
               id={`${idPrefix}-comment`}
               maxLength={1000}
               rows={4}
-              className="w-full rounded-md border border-[var(--border)] bg-transparent p-2"
+              className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-2"
               {...field}
             />
           )}

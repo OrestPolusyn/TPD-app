@@ -41,7 +41,7 @@ export async function SearchForm({
           id="province"
           name="province"
           defaultValue=""
-          className="w-full rounded-md border border-[var(--border)] bg-transparent p-2"
+          className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-2"
         >
           <option value="">{t("provincePlaceholder")}</option>
           {provinces.map((p) => (

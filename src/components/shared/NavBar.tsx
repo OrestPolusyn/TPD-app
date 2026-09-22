@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { DetailsAutoClose } from "@/components/shared/DetailsAutoClose";
+import { NewReportsBell } from "@/components/shared/NewReportsBell";
 
 const linkClassName = "text-[var(--muted)] no-underline transition-colors hover:text-[var(--foreground)]";
 const ctaClassName =
@@ -25,41 +26,45 @@ export async function NavBar() {
           TP Spain
         </Link>
 
-        {/* Desktop / tablet: horizontal link row, no client JS. */}
-        <nav aria-label={t("home")} className="hidden items-center gap-x-5 gap-y-2 text-sm sm:flex">
-          {links.map((link) => (
-            <Link key={link.href} href={link.href} className={linkClassName}>
-              {link.label}
-            </Link>
-          ))}
-          <Link href="/locations/new" className={ctaClassName}>
-            {t("suggestCta")}
-          </Link>
-        </nav>
+        <div className="flex items-center gap-1 sm:gap-3">
+          <NewReportsBell label={t("newReports")} />
 
-        {/* Mobile: native <details> disclosure — zero added client JS. */}
-        <details id="nav-menu" className="relative sm:hidden">
-          <summary
-            aria-label={t("home")}
-            className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-md border border-[var(--border)] text-lg [&::-webkit-details-marker]:hidden"
-          >
-            ☰
-          </summary>
-          <nav
-            aria-label={t("home")}
-            className="absolute right-0 z-20 mt-2 flex w-56 flex-col gap-1 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3 text-sm shadow-[var(--shadow-lg)]"
-          >
+          {/* Desktop / tablet: horizontal link row, no client JS. */}
+          <nav aria-label={t("home")} className="hidden items-center gap-x-5 gap-y-2 text-sm sm:flex">
             {links.map((link) => (
-              <Link key={link.href} href={link.href} className={`${linkClassName} rounded-md px-2 py-1.5`}>
+              <Link key={link.href} href={link.href} className={linkClassName}>
                 {link.label}
               </Link>
             ))}
-            <Link href="/locations/new" className={`${ctaClassName} mt-1`}>
+            <Link href="/locations/new" className={ctaClassName}>
               {t("suggestCta")}
             </Link>
           </nav>
-        </details>
-        <DetailsAutoClose id="nav-menu" />
+
+          {/* Mobile: native <details> disclosure — zero added client JS. */}
+          <details id="nav-menu" className="relative sm:hidden">
+            <summary
+              aria-label={t("home")}
+              className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-md border border-[var(--border)] text-lg [&::-webkit-details-marker]:hidden"
+            >
+              ☰
+            </summary>
+            <nav
+              aria-label={t("home")}
+              className="absolute right-0 z-20 mt-2 flex w-56 flex-col gap-1 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3 text-sm shadow-[var(--shadow-lg)]"
+            >
+              {links.map((link) => (
+                <Link key={link.href} href={link.href} className={`${linkClassName} rounded-md px-2 py-1.5`}>
+                  {link.label}
+                </Link>
+              ))}
+              <Link href="/locations/new" className={`${ctaClassName} mt-1`}>
+                {t("suggestCta")}
+              </Link>
+            </nav>
+          </details>
+          <DetailsAutoClose id="nav-menu" />
+        </div>
       </div>
     </header>
   );

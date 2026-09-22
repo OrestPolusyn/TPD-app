@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { reportSchema } from "@/lib/validation/reportSchema";
 import { PROCEDURE_CODE } from "@/lib/matching/types";
+import { notifyNewReport } from "@/lib/telegram/notifyNewReport";
+import { getPublicProfiles } from "@/lib/data/reports";
+import { formatDate } from "@/lib/format";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -64,5 +68,39 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "unknown" }, { status: 500 });
   }
 
+  // After the report is safely stored, never before: this is a courtesy to
+  // whoever moderates, and it awaits only so the serverless function is not
+  // torn down mid-request. notifyNewReport swallows its own failures.
+  await notifyNewReport(await describeReport(supabase, input));
+
   return NextResponse.json({ ok: true, reportId: data });
+}
+
+/** Turns the submitted report into something readable in a chat message. */
+async function describeReport(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  input: { location_id: string; outcome: string; event_date: string }
+) {
+  const [{ data: location }, tOutcomes] = await Promise.all([
+    supabase.from("locations").select("name").eq("id", input.location_id).maybeSingle(),
+    getTranslations("outcomes"),
+  ]);
+
+  return {
+    locationId: input.location_id,
+    locationName: location?.name ?? input.location_id,
+    outcome: tOutcomes(input.outcome as Parameters<typeof tOutcomes>[0]),
+    eventDate: formatDate(input.event_date),
+    author: await authorName(supabase),
+  };
+}
+
+/** The display name the report will be signed with on the page. */
+async function authorName(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return "";
+  const profiles = await getPublicProfiles(supabase, [user.id]);
+  return profiles.get(user.id)?.display_name ?? "";
 }

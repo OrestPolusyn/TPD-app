@@ -1,0 +1,35 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { countReportsSince } from "@/lib/data/reports";
+
+export const dynamic = "force-dynamic";
+
+/** Nothing older than this counts as "new" — a bell reading 300 is noise. */
+const MAX_LOOKBACK_DAYS = 90;
+
+/**
+ * Feeds the bell in the header: how many published reports have arrived since
+ * the visitor last looked at the feed.
+ *
+ * The "last looked" timestamp lives in the visitor's own browser, not on the
+ * server — this works signed out, stores nothing about anyone, and is the
+ * whole state the feature needs.
+ */
+export async function GET(request: Request) {
+  const since = new URL(request.url).searchParams.get("since");
+  const parsed = since ? Date.parse(since) : NaN;
+  if (!Number.isFinite(parsed)) {
+    return NextResponse.json({ error: "bad_since" }, { status: 400 });
+  }
+
+  const floor = Date.now() - MAX_LOOKBACK_DAYS * 86_400_000;
+  const from = new Date(Math.max(parsed, floor)).toISOString();
+
+  const supabase = await createClient();
+  try {
+    return NextResponse.json({ count: await countReportsSince(supabase, from) });
+  } catch {
+    // A bell that cannot count is not worth a 500 on the page it sits in.
+    return NextResponse.json({ count: 0 });
+  }
+}

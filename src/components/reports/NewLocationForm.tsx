@@ -77,7 +77,7 @@ export function NewLocationForm({ labels }: { labels: NewLocationFormLabels }) {
           maxLength={2000}
           rows={8}
           required
-          className="w-full rounded-md border border-[var(--border)] bg-transparent p-2"
+          className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-2"
         />
       </div>
 

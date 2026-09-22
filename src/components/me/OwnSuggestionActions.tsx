@@ -80,7 +80,7 @@ export function OwnSuggestionActions({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           maxLength={500}
-          className="w-full rounded-md border border-[var(--border)] bg-transparent p-1.5 text-sm"
+          className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-1.5 text-sm"
         />
         {error ? <p className="text-xs text-[var(--danger)]">{labels.generic}</p> : null}
         <div className="flex gap-3 text-xs">

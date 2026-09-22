@@ -114,3 +114,23 @@ body {
   --border-strong: #3b4854;
   --accent-soft: #1c2542;
 }
+
+/* Form controls have to read as controls.
+   
+   They were transparent with a hairline border, which on the soft grey page
+   canvas made a select look like a line of text rather than something to
+   tap — reported from a phone, where it is worst. They carry a surface fill
+   and a stronger border now; this adds the focus ring, which the browser
+   default draws inconsistently once a border colour is set. */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Placeholder text is a prompt, not content. */
+::placeholder {
+  color: var(--muted-subtle);
+  opacity: 1;
+}
