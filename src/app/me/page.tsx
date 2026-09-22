@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { config } from "@/lib/config";
 import { TelegramAuthPanel } from "@/components/auth/TelegramAuthPanel";
+import { RefreshOnReturn } from "@/components/auth/RefreshOnReturn";
 import { DeleteAccountButton } from "@/components/me/DeleteAccountButton";
 import { getOwnReports, getOwnComments, getOwnSuggestions } from "@/lib/data/me";
 import { formatDate } from "@/lib/format";
@@ -40,6 +41,7 @@ export default async function MePage({ searchParams }: MePageProps) {
         <h1 className="text-2xl font-bold tracking-tight">{t("loginTitle")}</h1>
         <p className="text-sm text-[var(--muted)]">{t("loginHint")}</p>
         <p className="text-sm text-[var(--muted)]">{t("loginTroubleshooting")}</p>
+        <RefreshOnReturn />
         <TelegramAuthPanel
           botUsername={botUsername}
           linkExpired={login === "expired" || login === "failed"}
