@@ -95,6 +95,20 @@ async function handleMessage(token: string, update: TelegramUpdate) {
 
   const [rawCommand, ...args] = text.split(/\s+/);
   const command = rawCommand.split("@")[0];
+
+  // /id answers with this chat's id, which is the value
+  // TELEGRAM_ADMIN_CHAT_ID wants. Deliberately not in setMyCommands: it is a
+  // setup step for whoever runs the deployment, not something to put in every
+  // visitor's command menu. Works in a group too — add the bot and send /id
+  // there to route submissions to the group instead.
+  if (command === "/id") {
+    await send(token, "sendMessage", {
+      chat_id: chatId,
+      text: messages.telegramBot.idNotice.replace("{id}", String(chatId)),
+    });
+    return;
+  }
+
   if (command !== "/start" && command !== "/help") return;
 
   // Messages read straight from the JSON, as src/app/error.tsx does: a bot

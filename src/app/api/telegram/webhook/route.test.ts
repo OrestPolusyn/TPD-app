@@ -201,6 +201,15 @@ describe("sign-in confirmation", () => {
     );
   });
 
+  /** How whoever runs the deployment finds the value for TELEGRAM_ADMIN_CHAT_ID. */
+  it("answers /id with this chat's id", async () => {
+    await POST(update({ message: { chat: { id: 745616671 }, from: { id: 745616671 }, text: "/id" } }, SECRET));
+
+    const sent = calls.find((c) => c.method === "sendMessage");
+    expect(sent?.params.chat_id).toBe(745616671);
+    expect(sent?.params.text).toContain("745616671");
+  });
+
   it("approves nothing for callback data that is not a login", async () => {
     await POST(
       update({ callback_query: { id: "cb-2", from: { id: 99 }, data: "something-else" } }, SECRET)

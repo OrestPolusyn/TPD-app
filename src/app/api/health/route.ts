@@ -103,6 +103,16 @@ export async function GET() {
     tokenBelongsTo,
     tokenError,
     webhook,
+    /**
+     * Whether submissions reach anybody. Unset means notifyModerator does
+     * nothing at all — deliberately, so the feature can be switched off, but
+     * silently, which is indistinguishable from broken. Say it out loud here.
+     * Open /api/telegram/setup?notify=test to actually send one.
+     */
+    moderatorChat: {
+      configured: Boolean(process.env.TELEGRAM_ADMIN_CHAT_ID),
+      howToFind: "Send /id to the bot; it replies with the id to paste into TELEGRAM_ADMIN_CHAT_ID.",
+    },
     /** false here explains a `bad_hash` login failure on its own. */
     botMatchesToken:
       configuredUsername && tokenBelongsTo

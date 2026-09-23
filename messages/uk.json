@@ -373,7 +373,9 @@
     "loginExpiredToast": "Запит застарів",
     "newReportNotice": "Новий звіт на сайті\n\n{location}\nРезультат: {outcome}\nДата візиту: {date}\nАвтор: {author}\n\n{url}",
     "newSuggestionNotice": "Пропозиція правки\n\n{location}\nПоле: {field}\nБуло: {current}\nСтало: {proposed}\nАвтор: {author}\n\n{url}",
-    "newLocationNotice": "Пропозиція нової локації\n\n{description}\n\nАвтор: {author}\nID: {id}\n\nПотребує перевірки й публікації в Supabase."
+    "newLocationNotice": "Пропозиція нової локації\n\n{description}\n\nАвтор: {author}\nID: {id}\n\nПотребує перевірки й публікації в Supabase.",
+    "testNotice": "Перевірка звʼязку. Сюди приходитимуть нові звіти та пропозиції з сайту.",
+    "idNotice": "ID цього чату: {id}\n\nВставте його у змінну TELEGRAM_ADMIN_CHAT_ID у налаштуваннях розгортання — і сюди приходитимуть нові звіти та пропозиції."
   },
   "theme": {
     "label": "Тема",
