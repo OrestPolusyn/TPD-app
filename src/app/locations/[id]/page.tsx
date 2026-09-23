@@ -6,7 +6,6 @@ import { getLocationById } from "@/lib/data/locations";
 import { getFlaggedReportsForLocation, getReportDetails, getCommentsForReports } from "@/lib/data/reports";
 import { getActiveDocumentTypes } from "@/lib/data/documentTypes";
 import { OfficialBlock } from "@/components/location/OfficialBlock";
-import { PracticalInfo } from "@/components/location/PracticalInfo";
 import { LocationSummary } from "@/components/location/LocationSummary";
 import { CommunityBlock } from "@/components/location/CommunityBlock";
 import { ShareActions } from "@/components/location/ShareActions";
@@ -99,7 +98,6 @@ export default async function LocationPage({ params, searchParams }: LocationPag
         </p>
       </div>
       <LocationSummary reports={[...reportDetails.values()]} documentLabels={documentLabels} />
-      <PracticalInfo location={location} />
       <ShareActions
         webUrl={webUrl}
         telegramUrl={telegramUrl}
@@ -111,6 +109,7 @@ export default async function LocationPage({ params, searchParams }: LocationPag
       />
       <CommunityBlock
         locationId={location.id}
+        location={location}
         data={matchingData}
         reportDetails={reportDetails}
         flaggedReports={flaggedReports}

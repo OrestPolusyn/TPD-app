@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import type { LocationPageData, MatchedReport } from "@/lib/matching/types";
+import type { LocationPageData, LocationRow, MatchedReport } from "@/lib/matching/types";
 import type { ReportDetail, CommentRow } from "@/lib/data/reports";
 import { OutcomeLabel } from "@/components/shared/OutcomeLabel";
 import { Avatar } from "@/components/shared/Avatar";
+import { PracticalInfo } from "@/components/location/PracticalInfo";
 import { FlagButton } from "@/components/location/FlagButton";
 import { CommentForm } from "@/components/location/CommentForm";
 import { formatDate } from "@/lib/format";
@@ -104,6 +105,7 @@ async function ReportCard({
 
 export async function CommunityBlock({
   locationId,
+  location,
   data,
   reportDetails,
   flaggedReports,
@@ -111,6 +113,7 @@ export async function CommunityBlock({
   comments,
 }: {
   locationId: string;
+  location: LocationRow;
   data: LocationPageData;
   reportDetails: Map<string, ReportDetail>;
   flaggedReports: ReportDetail[];
@@ -135,6 +138,15 @@ export async function CommunityBlock({
   return (
     <section className="flex flex-col gap-4">
       <h2 className="font-medium">{t("communityBlockTitle")}</h2>
+
+      {/* A digest of what the community is reporting about this office sits
+          with the reports, not off on its own: this is the section people read
+          for "what actually happens here", and on a location nobody has filed
+          a report for yet it is the only thing that answers them. Kept a
+          visibly different kind of entry — it is second-hand and dated, not
+          one person's visit, and it is deliberately not counted in the
+          outcome statistics above. */}
+      <PracticalInfo location={location} />
 
       {data.policy_change ? (
         <p role="note" className="rounded bg-[var(--highlight-bg)] p-2 text-sm">
@@ -166,7 +178,11 @@ export async function CommunityBlock({
       {/* There used to be "У мене так само" / "У мене інакше" here. Both linked
           to the same form, and with no reports on the page there was nothing to
           be the same as — readers asked what "так само" referred to. */}
-      {hasReports ? null : <p className="text-sm text-[var(--muted)]">{t("noReportsYet")}</p>}
+      {hasReports ? null : (
+        <p className="text-sm text-[var(--muted)]">
+          {location.practical_info ? t("noOwnReportsYet") : t("noReportsYet")}
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
         <Link
