@@ -1,6 +1,41 @@
 import { callTelegram } from "@/lib/telegram/api";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { config } from "@/lib/config";
 import messages from "../../../messages/uk.json";
+
+const MODERATOR_CHAT_SETTING = "moderator_chat_id";
+
+/**
+ * Which chat hears about submissions.
+ *
+ * TELEGRAM_ADMIN_CHAT_ID wins when set, so a self-hosted deployment can
+ * configure this the ordinary way. Otherwise it comes from app_settings
+ * (0014), which is there because the env var route means "open the hosting
+ * dashboard, add a variable, redeploy" — three steps, all silent if skipped,
+ * and skipping them is exactly what made notifications look broken.
+ *
+ * Null means nobody is configured, and nothing is sent.
+ */
+export async function getModeratorChatId(): Promise<string | null> {
+  const fromEnv = process.env.TELEGRAM_ADMIN_CHAT_ID?.trim();
+  if (fromEnv) return fromEnv;
+
+  try {
+    const { data, error } = await createAdminClient()
+      .from("app_settings")
+      .select("value")
+      .eq("key", MODERATOR_CHAT_SETTING)
+      .maybeSingle();
+    if (error) {
+      console.error("could not read the moderator chat setting:", error.message);
+      return null;
+    }
+    return data?.value?.trim() || null;
+  } catch (err) {
+    console.error("could not read the moderator chat setting:", err);
+    return null;
+  }
+}
 
 /**
  * Tells the moderator chat that something arrived that needs a human.
@@ -21,8 +56,10 @@ import messages from "../../../messages/uk.json";
  */
 async function notify(text: string): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
-  if (!token || !chatId) return;
+  if (!token) return;
+
+  const chatId = await getModeratorChatId();
+  if (!chatId) return;
 
   try {
     const res = await callTelegram(token, "sendMessage", {

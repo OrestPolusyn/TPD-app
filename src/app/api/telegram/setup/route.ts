@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { callTelegram, getMe, getWebhookInfo, type WebhookInfo } from "@/lib/telegram/api";
 import { deriveWebhookSecret } from "@/lib/telegram/webhookSecret";
 import { config } from "@/lib/config";
+import { getModeratorChatId } from "@/lib/telegram/notifyModerator";
 import messages from "../../../../../messages/uk.json";
 
 export const dynamic = "force-dynamic";
@@ -126,22 +127,24 @@ async function register(token: string, botUsername: string, webhookUrl: string) 
  * Telegram says back, verbatim.
  *
  * The answers that matter, and what each means:
- * - not configured            -> TELEGRAM_ADMIN_CHAT_ID is unset in this
- *                                environment, so nothing is ever sent.
+ * - not configured            -> neither the env var nor app_settings names a
+ *                                chat, so nothing is ever sent.
  * - "chat not found"          -> the id is wrong, or the bot has never been
  *                                started by that user / added to that group.
  * - "bot was blocked by the user" -> exactly that.
  * - ok                        -> a message is in the chat right now.
  */
 async function testModeratorChat(token: string) {
-  const chatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+  const chatId = await getModeratorChatId();
   if (!chatId) {
     return {
       ok: false,
       configured: false,
       message:
-        "TELEGRAM_ADMIN_CHAT_ID is not set, so no submission notification is ever sent. " +
-        "Send /id to the bot to get the value, set it in the deployment's environment, redeploy, then open this again.",
+        "No moderator chat is configured, so no submission notification is ever sent. " +
+        "Set TELEGRAM_ADMIN_CHAT_ID in this deployment's environment, or put the id in " +
+        "app_settings under the key 'moderator_chat_id' (no redeploy needed). " +
+        "Send /id to the bot to get the value.",
     };
   }
 

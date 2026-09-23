@@ -1,5 +1,21 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { notifyNewReport, notifyNewSuggestion, notifyNewLocation } from "./notifyModerator";
+
+/** The app_settings fallback, stubbed: these tests are about the messages. */
+const settingsRow = vi.fn<() => Promise<{ data: { value: string } | null; error: null }>>();
+
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: () => ({
+    from: () => ({
+      select: () => ({
+        eq: () => ({ maybeSingle: settingsRow }),
+      }),
+    }),
+  }),
+}));
+
+const { notifyNewReport, notifyNewSuggestion, notifyNewLocation, getModeratorChatId } = await import(
+  "./notifyModerator"
+);
 
 const TOKEN = "123:test-token";
 const CHAT = "555";
@@ -32,6 +48,7 @@ beforeEach(() => {
   vi.stubEnv("TELEGRAM_BOT_TOKEN", TOKEN);
   vi.stubEnv("TELEGRAM_ADMIN_CHAT_ID", CHAT);
   vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://tp.example");
+  settingsRow.mockResolvedValue({ data: null, error: null });
 });
 
 afterEach(() => {
@@ -98,10 +115,39 @@ describe("moderator notifications", () => {
     expect(text).not.toContain("https://tp.example/locations/");
   });
 
-  it("stays silent when no moderator chat is configured", async () => {
+  it("stays silent when neither the env var nor app_settings names a chat", async () => {
     vi.stubEnv("TELEGRAM_ADMIN_CHAT_ID", "");
     const spy = okFetch();
     await notifyNewReport(REPORT);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Configuring this by env var means: open the hosting dashboard, add a
+   * variable, redeploy — and skipping any of it fails silently. The row is
+   * the path that needs none of that.
+   */
+  it("falls back to app_settings when the env var is unset", async () => {
+    vi.stubEnv("TELEGRAM_ADMIN_CHAT_ID", "");
+    settingsRow.mockResolvedValue({ data: { value: "999" }, error: null });
+    const spy = okFetch();
+
+    await notifyNewReport(REPORT);
+    expect(sent(spy)[0].params.chat_id).toBe("999");
+  });
+
+  it("prefers the env var, so a deployment can still configure it directly", async () => {
+    settingsRow.mockResolvedValue({ data: { value: "999" }, error: null });
+    expect(await getModeratorChatId()).toBe(CHAT);
+  });
+
+  it("stays silent when the settings lookup fails, rather than throwing", async () => {
+    vi.stubEnv("TELEGRAM_ADMIN_CHAT_ID", "");
+    settingsRow.mockRejectedValue(new Error("no database"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const spy = okFetch();
+
+    await expect(notifyNewReport(REPORT)).resolves.toBeUndefined();
     expect(spy).not.toHaveBeenCalled();
   });
 

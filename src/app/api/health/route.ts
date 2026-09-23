@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getMe, getWebhookInfo } from "@/lib/telegram/api";
+import { getModeratorChatId } from "@/lib/telegram/notifyModerator";
 import { getOwnProfile, getOwnReports, getOwnComments, getOwnSuggestions } from "@/lib/data/me";
 
 export const dynamic = "force-dynamic";
@@ -98,6 +99,10 @@ export async function GET() {
     }
   }
 
+  // Resolved, not just the env var: app_settings is the other source, and the
+  // whole point of this line is to answer "does a submission reach anybody".
+  const moderatorChatConfigured = Boolean(await getModeratorChatId());
+
   const telegram = {
     botUsername: configuredUsername,
     tokenBelongsTo,
@@ -110,8 +115,9 @@ export async function GET() {
      * Open /api/telegram/setup?notify=test to actually send one.
      */
     moderatorChat: {
-      configured: Boolean(process.env.TELEGRAM_ADMIN_CHAT_ID),
-      howToFind: "Send /id to the bot; it replies with the id to paste into TELEGRAM_ADMIN_CHAT_ID.",
+      configured: moderatorChatConfigured,
+      source: process.env.TELEGRAM_ADMIN_CHAT_ID ? "env" : moderatorChatConfigured ? "app_settings" : null,
+      howToFind: "Send /id to the bot; it replies with the id to configure.",
     },
     /** false here explains a `bad_hash` login failure on its own. */
     botMatchesToken:
