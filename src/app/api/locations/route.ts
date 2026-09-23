@@ -2,6 +2,8 @@ import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { newLocationSchema } from "@/lib/validation/newLocationSchema";
+import { getDisplayName } from "@/lib/data/reports";
+import { notifyNewLocation } from "@/lib/telegram/notifyModerator";
 
 /**
  * The user provides free text only; every structured field goes to a
@@ -54,6 +56,14 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: "unknown" }, { status: 500 });
   }
+
+  // A submitted location is invisible until a moderator fills in the real
+  // fields, so without this it waits in a table nobody was told to open.
+  await notifyNewLocation({
+    locationId: id,
+    description: input.description,
+    author: await getDisplayName(supabase, user.id),
+  });
 
   return NextResponse.json({ ok: true, locationId: data });
 }

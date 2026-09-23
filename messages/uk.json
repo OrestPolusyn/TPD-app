@@ -371,7 +371,9 @@
     "loginApprovedToast": "Підтверджено",
     "loginExpired": "Запит на вхід застарів або вже використаний. Почніть вхід на сайті ще раз.",
     "loginExpiredToast": "Запит застарів",
-    "newReportNotice": "Новий звіт на сайті\n\n{location}\nРезультат: {outcome}\nДата візиту: {date}\nАвтор: {author}\n\n{url}"
+    "newReportNotice": "Новий звіт на сайті\n\n{location}\nРезультат: {outcome}\nДата візиту: {date}\nАвтор: {author}\n\n{url}",
+    "newSuggestionNotice": "Пропозиція правки\n\n{location}\nПоле: {field}\nБуло: {current}\nСтало: {proposed}\nАвтор: {author}\n\n{url}",
+    "newLocationNotice": "Пропозиція нової локації\n\n{description}\n\nАвтор: {author}\nID: {id}\n\nПотребує перевірки й публікації в Supabase."
   },
   "theme": {
     "label": "Тема",

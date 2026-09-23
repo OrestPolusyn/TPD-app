@@ -3,8 +3,8 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { reportSchema } from "@/lib/validation/reportSchema";
 import { PROCEDURE_CODE } from "@/lib/matching/types";
-import { notifyNewReport } from "@/lib/telegram/notifyNewReport";
-import { getPublicProfiles } from "@/lib/data/reports";
+import { notifyNewReport } from "@/lib/telegram/notifyModerator";
+import { getDisplayName } from "@/lib/data/reports";
 import { formatDate } from "@/lib/format";
 
 export async function POST(request: Request) {
@@ -100,7 +100,5 @@ async function authorName(supabase: Awaited<ReturnType<typeof createClient>>) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return "";
-  const profiles = await getPublicProfiles(supabase, [user.id]);
-  return profiles.get(user.id)?.display_name ?? "";
+  return user ? getDisplayName(supabase, user.id) : "";
 }

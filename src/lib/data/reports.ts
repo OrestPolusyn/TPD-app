@@ -55,6 +55,12 @@ export async function getPublicProfiles(
   return result;
 }
 
+/** One user's display name — the same one their submissions are signed with. */
+export async function getDisplayName(supabase: SupabaseClient, userId: string): Promise<string> {
+  const profiles = await getPublicProfiles(supabase, [userId]);
+  return profiles.get(userId)?.display_name ?? "";
+}
+
 function authorOf(profiles: Map<string, PublicProfile>, userId: string): { author_name: string; author_avatar_url: string | null } {
   const profile = profiles.get(userId);
   return { author_name: profile?.display_name ?? "Користувач", author_avatar_url: profile?.avatar_url ?? null };
