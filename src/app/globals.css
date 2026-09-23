@@ -134,3 +134,8 @@ textarea:focus-visible {
   color: var(--muted-subtle);
   opacity: 1;
 }
+
+/* Keeps the last thing on the page (the footer) clear of StickyActionBar. */
+body:has([data-sticky-action]) {
+  padding-bottom: 5.5rem;
+}

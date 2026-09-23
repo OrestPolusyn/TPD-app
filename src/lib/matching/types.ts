@@ -58,9 +58,6 @@ export interface LocationRow {
   verified_at: string;
   verification_status: VerificationStatus;
   notes: string | null;
-  /** Community-reported practice at this office — see supabase/migrations/0015. */
-  practical_info: string | null;
-  practical_info_updated_at: string | null;
   moderation_status: ModerationStatus;
 }
 

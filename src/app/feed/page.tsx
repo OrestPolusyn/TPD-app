@@ -2,7 +2,8 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getRecentReports } from "@/lib/data/reports";
-import { getRecentCommunityNotes } from "@/lib/data/locations";
+import { getRecentCommunityNotes } from "@/lib/data/communityNotes";
+import { CommunityNoteCard } from "@/components/location/CommunityNotes";
 import { OutcomeLabel } from "@/components/shared/OutcomeLabel";
 import { Avatar } from "@/components/shared/Avatar";
 import { MarkFeedSeen } from "@/components/shared/MarkFeedSeen";
@@ -20,7 +21,13 @@ export const dynamic = "force-dynamic";
 export default async function FeedPage() {
   const t = await getTranslations("feed");
   const supabase = await createClient();
-  const [reports, notes] = await Promise.all([getRecentReports(supabase), getRecentCommunityNotes(supabase)]);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const [reports, notes] = await Promise.all([
+    getRecentReports(supabase),
+    getRecentCommunityNotes(supabase, user?.id ?? null),
+  ]);
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-6">
@@ -30,8 +37,8 @@ export default async function FeedPage() {
         <p className="mt-1 text-sm text-[var(--muted)]">{t("subtitle")}</p>
       </div>
 
-      {/* Two lists, not one: community digests and personal reports are dated
-          by different clocks (when somebody summarised a chat vs when somebody
+      {/* Two lists, not one: community claims and personal reports are dated
+          by different clocks (when a chat reported something vs when somebody
           visited an office), so interleaving them would invent a precision
           neither has. */}
       {notes.length > 0 ? (
@@ -39,18 +46,14 @@ export default async function FeedPage() {
           <h2 className="text-sm font-medium text-[var(--muted)]">{t("notesTitle")}</h2>
           <ul className="flex flex-col gap-3">
             {notes.map((note) => (
-              <li
-                key={note.location_id}
-                className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--accent-soft)] p-4"
-              >
-                <Link href={`/locations/${note.location_id}`} className="font-medium no-underline hover:underline">
-                  {note.location_name}
+              <CommunityNoteCard key={note.id} note={note}>
+                <Link
+                  href={`/locations/${note.location_id}#note-${note.id}`}
+                  className="mt-1 block text-xs text-[var(--muted)] no-underline hover:underline"
+                >
+                  {note.location_name} · {note.city}, {note.province}
                 </Link>
-                <p className="text-xs text-[var(--muted)]">
-                  {note.city}, {note.province} · {formatDate(note.updated_at)}
-                </p>
-                <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm">{note.text}</p>
-              </li>
+              </CommunityNoteCard>
             ))}
           </ul>
         </section>

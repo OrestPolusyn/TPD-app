@@ -19,3 +19,14 @@ export type FlagInput = z.infer<typeof flagSchema>;
 export const commentBodySchema = z.object({
   body: z.string().trim().min(1).max(1000),
 });
+
+/**
+ * "Це актуально" / "Вже не так" on a community note. Sending the stance you
+ * already hold takes it back, so there is no separate delete endpoint.
+ */
+export const noteConfirmationSchema = z.object({
+  note_id: z.string().uuid(),
+  stance: z.enum(["still_true", "changed"]),
+});
+
+export type NoteConfirmationInput = z.infer<typeof noteConfirmationSchema>;

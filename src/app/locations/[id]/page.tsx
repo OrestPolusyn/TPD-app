@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getLocationById } from "@/lib/data/locations";
 import { getFlaggedReportsForLocation, getReportDetails, getCommentsForReports } from "@/lib/data/reports";
 import { getActiveDocumentTypes } from "@/lib/data/documentTypes";
+import { getCommunityNotesForLocation } from "@/lib/data/communityNotes";
 import { OfficialBlock } from "@/components/location/OfficialBlock";
 import { LocationSummary } from "@/components/location/LocationSummary";
 import { CommunityBlock } from "@/components/location/CommunityBlock";
@@ -69,10 +70,15 @@ export default async function LocationPage({ params, searchParams }: LocationPag
     ...matchingData.unsuccessful,
   ].map((r: { report_id: string }) => r.report_id);
 
-  const [reportDetails, flaggedReports, documentTypes] = await Promise.all([
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const [reportDetails, flaggedReports, documentTypes, notes] = await Promise.all([
     getReportDetails(supabase, allReportIds),
     getFlaggedReportsForLocation(supabase, location.id, PROCEDURE_CODE),
     getActiveDocumentTypes(supabase),
+    getCommunityNotesForLocation(supabase, location.id, user?.id ?? null),
   ]);
 
   const comments = await getCommentsForReports(supabase, [
@@ -90,7 +96,7 @@ export default async function LocationPage({ params, searchParams }: LocationPag
   const tShare = await getTranslations("location");
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 pb-24 sm:p-6 sm:pb-24">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{location.name}</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
@@ -109,7 +115,7 @@ export default async function LocationPage({ params, searchParams }: LocationPag
       />
       <CommunityBlock
         locationId={location.id}
-        location={location}
+        notes={notes}
         data={matchingData}
         reportDetails={reportDetails}
         flaggedReports={flaggedReports}
