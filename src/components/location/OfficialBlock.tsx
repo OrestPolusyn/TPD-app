@@ -10,6 +10,7 @@ function officialSourceLabel(
   if (location.verification_status === "verified") return t("officialSourceMissm");
   if (location.verification_status === "conflict") return t("officialSourceConflict");
   if (location.verification_status === "user_submitted") return t("officialSourceUserSubmitted");
+  if (location.verification_status === "community_reported") return t("officialSourceCommunity");
   return t("officialSourceOfficial2022");
 }
 

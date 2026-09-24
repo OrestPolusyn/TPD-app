@@ -2,7 +2,7 @@
 // supabase/migrations/0002_enums.sql and 0007_matching.sql.
 
 export type LocationType = "creade" | "police_station";
-export type VerificationStatus = "verified" | "official_2022" | "conflict" | "user_submitted";
+export type VerificationStatus = "verified" | "official_2022" | "conflict" | "user_submitted" | "community_reported";
 export type AppointmentMethod = "phone" | "email" | "phone_or_email" | "icp_online";
 export type ModerationStatus = "pending" | "published" | "flagged" | "rejected" | "hidden";
 export type ReportOutcome =
@@ -60,7 +60,7 @@ export interface LocationRow {
   verification_status: VerificationStatus;
   notes: string | null;
   /** False for offices in the official list that do not take applications
-   * (one office per province does) — see supabase/migrations/0021. */
+   * — see supabase/migrations/0021 and 0025. */
   accepts_applications: boolean;
   moderation_status: ModerationStatus;
 }

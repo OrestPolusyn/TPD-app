@@ -16,10 +16,10 @@ import { SubmitButton } from "@/components/search/SubmitButton";
  * immediately instead of the page sitting frozen while fn_search_results runs.
  * It degrades to a normal GET submit without JS.
  *
- * No province field: one office per province takes applications, so the
- * results are one card per province across Spain, ranked by where people
- * with these documents were accepted. Asking for a province first made
- * people choose before they could compare.
+ * No province field: results cover every office in Spain that takes
+ * applications (supabase/migrations/0021, 0025), ranked by where people with
+ * these documents were accepted. Asking for a province first made people
+ * choose before they could compare.
  */
 export async function SearchForm({ documentTypes }: { documentTypes: DocumentTypeRow[] }) {
   const t = await getTranslations("home");

@@ -98,8 +98,8 @@ export async function getLocationById(
  * date desc, province asc — see supabase/migrations/0021).
  *
  * `provinceSlug` null searches all of Spain, which is what the search form
- * does: one office per province takes applications, so the result is one
- * card per province. A slug is still honoured for old shared links.
+ * does; only offices that take applications are returned. A slug is still
+ * honoured for old shared links.
  */
 export async function searchLocations(
   supabase: SupabaseClient,

@@ -1,0 +1,11 @@
+-- Offices that take temporary-protection applications but are missing from
+-- the ministry's list. The chats name several (Alzira, Gandia, Paterna,
+-- Sagunto, Xirivella, Puerto de la Cruz, Adeje); their addresses come from
+-- public directories, not from an official source. None of the existing
+-- statuses says that honestly — 'official_2022' would claim a list they are
+-- not on, 'user_submitted' reads as "awaiting moderation" — so they get
+-- their own, rendered as such on the office card.
+--
+-- Separate from the migration that uses it: Postgres will not let a new enum
+-- value be used in the transaction that adds it.
+alter type verification_status_t add value if not exists 'community_reported';
