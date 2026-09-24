@@ -2,8 +2,6 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getRecentReports } from "@/lib/data/reports";
-import { getRecentCommunityNotes } from "@/lib/data/communityNotes";
-import { CommunityNoteCard } from "@/components/location/CommunityNotes";
 import { OutcomeLabel } from "@/components/shared/OutcomeLabel";
 import { Avatar } from "@/components/shared/Avatar";
 import { MarkFeedSeen } from "@/components/shared/MarkFeedSeen";
@@ -21,13 +19,7 @@ export const dynamic = "force-dynamic";
 export default async function FeedPage() {
   const t = await getTranslations("feed");
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const [reports, notes] = await Promise.all([
-    getRecentReports(supabase),
-    getRecentCommunityNotes(supabase, user?.id ?? null),
-  ]);
+  const reports = await getRecentReports(supabase);
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-6">
@@ -37,33 +29,9 @@ export default async function FeedPage() {
         <p className="mt-1 text-sm text-[var(--muted)]">{t("subtitle")}</p>
       </div>
 
-      {/* Two lists, not one: community claims and personal reports are dated
-          by different clocks (when a chat reported something vs when somebody
-          visited an office), so interleaving them would invent a precision
-          neither has. */}
-      {notes.length > 0 ? (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium text-[var(--muted)]">{t("notesTitle")}</h2>
-          <ul className="flex flex-col gap-3">
-            {notes.map((note) => (
-              <CommunityNoteCard key={note.id} note={note}>
-                <Link
-                  href={`/locations/${note.location_id}#note-${note.id}`}
-                  className="mt-1 block text-xs text-[var(--muted)] no-underline hover:underline"
-                >
-                  {note.location_name} · {note.city}, {note.province}
-                </Link>
-              </CommunityNoteCard>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {reports.length > 0 ? <h2 className="text-sm font-medium text-[var(--muted)]">{t("reportsTitle")}</h2> : null}
-
-      {reports.length === 0 && notes.length === 0 ? (
+      {reports.length === 0 ? (
         <p className="text-sm text-[var(--muted)]">{t("empty")}</p>
-      ) : reports.length === 0 ? null : (
+      ) : (
         <ul className="flex flex-col gap-3">
           {reports.map((report) => (
             <li

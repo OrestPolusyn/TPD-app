@@ -22,6 +22,7 @@ export const DOCUMENT_CODES = [
   "proof_of_residence_in_ukraine",
   "ukraine_residence_permit_third_country",
   "passport_exit_stamp",
+  "border_crossing_certificate",
   "military_document_paper",
   "military_document_reserve_plus",
   "marriage_certificate",

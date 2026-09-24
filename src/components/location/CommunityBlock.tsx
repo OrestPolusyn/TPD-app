@@ -4,8 +4,8 @@ import type { LocationPageData, MatchedReport } from "@/lib/matching/types";
 import type { ReportDetail, CommentRow } from "@/lib/data/reports";
 import { OutcomeLabel } from "@/components/shared/OutcomeLabel";
 import { Avatar } from "@/components/shared/Avatar";
-import { CommunityNotes } from "@/components/location/CommunityNotes";
-import type { CommunityNote } from "@/lib/data/communityNotes";
+import { CommunityBrief } from "@/components/location/CommunityBrief";
+import type { CommunityBrief as Brief } from "@/lib/data/communityNotes";
 import { FlagButton } from "@/components/location/FlagButton";
 import { CommentForm } from "@/components/location/CommentForm";
 import { formatDate } from "@/lib/format";
@@ -106,7 +106,7 @@ async function ReportCard({
 
 export async function CommunityBlock({
   locationId,
-  notes,
+  brief,
   data,
   reportDetails,
   flaggedReports,
@@ -114,7 +114,7 @@ export async function CommunityBlock({
   comments,
 }: {
   locationId: string;
-  notes: CommunityNote[];
+  brief: Brief | null;
   data: LocationPageData;
   reportDetails: Map<string, ReportDetail>;
   flaggedReports: ReportDetail[];
@@ -140,12 +140,11 @@ export async function CommunityBlock({
     <section className="flex flex-col gap-4">
       <h2 className="font-medium">{t("communityBlockTitle")}</h2>
 
-      {/* Claims gathered from the community chats sit with the reports, not
-          off on their own: this is the section people read for "what actually
-          happens here". Each one is individually confirmable (see
-          CommunityNotes), and none of them feeds the outcome statistics above
-          — they are second-hand, not somebody's visit. */}
-      <CommunityNotes notes={notes} />
+      {/* The distilled checklist from the community chats sits first: it is
+          what people open this page to find out. Kept to two short lists so
+          the actual reports below stay on screen; it is not one person's
+          visit and is not counted in the outcome statistics above. */}
+      <CommunityBrief locationId={locationId} brief={brief} />
 
       {data.policy_change ? (
         <p role="note" className="rounded bg-[var(--highlight-bg)] p-2 text-sm">
@@ -179,7 +178,7 @@ export async function CommunityBlock({
           be the same as — readers asked what "так само" referred to. */}
       {hasReports ? null : (
         <p className="text-sm text-[var(--muted)]">
-          {notes.length > 0 ? t("noOwnReportsYet") : t("noReportsYet")}
+          {brief ? t("noOwnReportsYet") : t("noReportsYet")}
         </p>
       )}
 

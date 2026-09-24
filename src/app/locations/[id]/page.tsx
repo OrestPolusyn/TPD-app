@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getLocationById } from "@/lib/data/locations";
 import { getFlaggedReportsForLocation, getReportDetails, getCommentsForReports } from "@/lib/data/reports";
 import { getActiveDocumentTypes } from "@/lib/data/documentTypes";
-import { getCommunityNotesForLocation } from "@/lib/data/communityNotes";
+import { getCommunityBrief } from "@/lib/data/communityNotes";
 import { OfficialBlock } from "@/components/location/OfficialBlock";
 import { LocationSummary } from "@/components/location/LocationSummary";
 import { CommunityBlock } from "@/components/location/CommunityBlock";
@@ -74,11 +74,11 @@ export default async function LocationPage({ params, searchParams }: LocationPag
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [reportDetails, flaggedReports, documentTypes, notes] = await Promise.all([
+  const [reportDetails, flaggedReports, documentTypes, brief] = await Promise.all([
     getReportDetails(supabase, allReportIds),
     getFlaggedReportsForLocation(supabase, location.id, PROCEDURE_CODE),
     getActiveDocumentTypes(supabase),
-    getCommunityNotesForLocation(supabase, location.id, user?.id ?? null),
+    getCommunityBrief(supabase, location.id, user?.id ?? null),
   ]);
 
   const comments = await getCommentsForReports(supabase, [
@@ -115,7 +115,7 @@ export default async function LocationPage({ params, searchParams }: LocationPag
       />
       <CommunityBlock
         locationId={location.id}
-        notes={notes}
+        brief={brief}
         data={matchingData}
         reportDetails={reportDetails}
         flaggedReports={flaggedReports}

@@ -62,13 +62,14 @@ const DOCUMENT_TYPES = [
   { code: "proof_of_residence_in_ukraine", label_uk: "Підтвердження проживання в Україні", label_es: "Prueba de residencia en Ucrania", sort_order: 4 },
   { code: "ukraine_residence_permit_third_country", label_uk: "Дозвіл на проживання в Україні (для громадян третіх країн)", label_es: "Permiso de residencia en Ucrania (terceros países)", sort_order: 5 },
   { code: "passport_exit_stamp", label_uk: "Штамп про перетин кордону", label_es: "Sello de salida en el pasaporte", sort_order: 6 },
-  { code: "military_document_paper", label_uk: "Військовий квиток (паперовий)", label_es: "Cartilla militar (papel)", sort_order: 7 },
-  { code: "military_document_reserve_plus", label_uk: "Військово-обліковий документ (Резерв+)", label_es: "Documento militar (Reserv+)", sort_order: 8 },
-  { code: "marriage_certificate", label_uk: "Свідоцтво про шлюб", label_es: "Certificado de matrimonio", sort_order: 9 },
-  { code: "child_birth_certificate", label_uk: "Свідоцтво про народження дитини", label_es: "Certificado de nacimiento del hijo/a", sort_order: 10 },
-  { code: "spanish_address_or_empadronamiento", label_uk: "Іспанська адреса / empadronamiento", label_es: "Empadronamiento / domicilio en España", sort_order: 11 },
-  { code: "passport_photos", label_uk: "Фотографії паспортного зразка", label_es: "Fotografías tipo carné", sort_order: 12 },
-  { code: "other", label_uk: "Інше", label_es: "Otro", sort_order: 13 },
+  { code: "border_crossing_certificate", label_uk: "Довідка ДПСУ про перетин кордону", label_es: "Certificado de cruce de frontera (DPSU)", sort_order: 7 },
+  { code: "military_document_paper", label_uk: "Військовий квиток (паперовий)", label_es: "Cartilla militar (papel)", sort_order: 8 },
+  { code: "military_document_reserve_plus", label_uk: "Військово-обліковий документ (Резерв+)", label_es: "Documento militar (Reserv+)", sort_order: 9 },
+  { code: "marriage_certificate", label_uk: "Свідоцтво про шлюб", label_es: "Certificado de matrimonio", sort_order: 10 },
+  { code: "child_birth_certificate", label_uk: "Свідоцтво про народження дитини", label_es: "Certificado de nacimiento del hijo/a", sort_order: 11 },
+  { code: "spanish_address_or_empadronamiento", label_uk: "Іспанська адреса / empadronamiento", label_es: "Empadronamiento / domicilio en España", sort_order: 12 },
+  { code: "passport_photos", label_uk: "Фотографії паспортного зразка", label_es: "Fotografías tipo carné", sort_order: 13 },
+  { code: "other", label_uk: "Інше", label_es: "Otro", sort_order: 14 },
 ].map((d) => ({ ...d, is_active: true }));
 
 function nullIfEmpty(value: string): string | null {

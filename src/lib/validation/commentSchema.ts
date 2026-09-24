@@ -21,12 +21,12 @@ export const commentBodySchema = z.object({
 });
 
 /**
- * "Це актуально" / "Вже не так" on a community note. Sending the stance you
- * already hold takes it back, so there is no separate delete endpoint.
+ * "Актуально" / "Змінилось" on an office's community brief. Sending the
+ * stance you already hold takes it back, so there is no separate delete.
  */
-export const noteConfirmationSchema = z.object({
-  note_id: z.string().uuid(),
+export const briefConfirmationSchema = z.object({
+  location_id: z.string().trim().min(1).max(200),
   stance: z.enum(["still_true", "changed"]),
 });
 
-export type NoteConfirmationInput = z.infer<typeof noteConfirmationSchema>;
+export type BriefConfirmationInput = z.infer<typeof briefConfirmationSchema>;
