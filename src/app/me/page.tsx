@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { getSuggestionFieldLabels } from "@/lib/suggestionLabels";
 import { createClient } from "@/lib/supabase/server";
 import { config } from "@/lib/config";
 import { TelegramAuthPanel } from "@/components/auth/TelegramAuthPanel";
@@ -18,13 +19,7 @@ export default async function MePage() {
   const tMe = await getTranslations("me");
   const tCommon = await getTranslations("common");
   const tOutcomes = await getTranslations("outcomes");
-  const tSuggest = await getTranslations("suggestForm");
-  const suggestionFieldLabels: Record<string, string> = {
-    address: tSuggest("fieldAddress"),
-    postal_code: tSuggest("fieldPostalCode"),
-    phone: tSuggest("fieldPhone"),
-    appointment_url: tSuggest("fieldAppointmentUrl"),
-  };
+  const suggestionFieldLabels: Record<string, string> = await getSuggestionFieldLabels();
   const supabase = await createClient();
   const {
     data: { user },

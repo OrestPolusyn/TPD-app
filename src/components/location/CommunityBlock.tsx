@@ -191,9 +191,6 @@ export async function CommunityBlock({
         >
           {t("shareExperienceButton")}
         </Link>
-        <Link href={`/locations/${locationId}/suggest`} className="underline">
-          {t("suggestEditButton")}
-        </Link>
       </div>
 
       {matches.length > 0 ? (

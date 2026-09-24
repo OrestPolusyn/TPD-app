@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { suggestionSchema, type SuggestionInput } from "@/lib/validation/suggestionSchema";
 import { getDisplayName } from "@/lib/data/reports";
 import { notifyNewSuggestion } from "@/lib/telegram/notifyModerator";
+import { getSuggestionFieldLabels } from "@/lib/suggestionLabels";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -58,18 +58,11 @@ async function notifyModerator(
   input: SuggestionInput,
   currentValue: string | null
 ) {
-  const [{ data: location }, tSuggest, author] = await Promise.all([
+  const [{ data: location }, fieldLabels, author] = await Promise.all([
     supabase.from("locations").select("name").eq("id", input.location_id).maybeSingle(),
-    getTranslations("suggestForm"),
+    getSuggestionFieldLabels(),
     getDisplayName(supabase, userId),
   ]);
-
-  const fieldLabels: Record<SuggestionInput["field"], string> = {
-    address: tSuggest("fieldAddress"),
-    postal_code: tSuggest("fieldPostalCode"),
-    phone: tSuggest("fieldPhone"),
-    appointment_url: tSuggest("fieldAppointmentUrl"),
-  };
 
   await notifyNewSuggestion({
     locationId: input.location_id,

@@ -161,7 +161,9 @@
     "briefChangedPlaceholder": "Наприклад: з 25.09 Резерв+ більше не просять, достатньо довідки ДПСУ",
     "briefChangedSubmit": "Надіслати",
     "briefChangedCancel": "Скасувати",
-    "briefChangedThanks": "Дякуємо! Модератор отримав повідомлення."
+    "briefChangedThanks": "Дякуємо! Модератор отримав повідомлення.",
+    "bookOnline": "Записатися на сайті",
+    "reportOfficialError": "Знайшли помилку? Запропонувати правку"
   },
   "outcomes": {
     "protection_granted": "Захист надано",
@@ -235,16 +237,20 @@
     "pendingNotice": "Модератор перевірить її та внесе зміни на сайт."
   },
   "suggestForm": {
-    "title": "Запропонувати правку",
+    "title": "Виправити інформацію",
     "fieldLabel": "Що виправити",
     "fieldAddress": "Адреса",
     "fieldPostalCode": "Поштовий індекс",
     "fieldPhone": "Телефон",
+    "fieldEmail": "E-mail",
+    "fieldAppointmentMethod": "Спосіб запису",
     "fieldAppointmentUrl": "Посилання на запис",
+    "fieldOther": "Інша помилка",
     "currentValueLabel": "Поточне значення",
     "proposedValueLabel": "Ваш варіант",
     "submitButton": "Надіслати пропозицію",
-    "successMessage": "Дякуємо! Пропозицію надіслано модератору."
+    "successMessage": "Дякуємо! Пропозицію надіслано модератору.",
+    "otherValueLabel": "Що не так? Опишіть коротко"
   },
   "me": {
     "title": "Мій кабінет",

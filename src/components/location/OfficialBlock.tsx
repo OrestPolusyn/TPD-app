@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { LocationRow } from "@/lib/matching/types";
 import { formatDate } from "@/lib/format";
@@ -82,15 +83,19 @@ export async function OfficialBlock({ location }: { location: LocationRow }) {
         ) : null}
         <div>
           <dt className="text-[var(--muted)]">{t("appointmentMethodLabel")}</dt>
-          <dd>
+          <dd className="flex flex-col items-start gap-1.5">
             {tMethod(location.appointment_method)}
+            {/* A button, not the raw URL: the booking site's address is long,
+                opaque and the one thing on this card people actually tap. */}
             {location.appointment_url ? (
-              <>
-                {" — "}
-                <a href={location.appointment_url} className="underline" target="_blank" rel="noopener noreferrer">
-                  {location.appointment_url}
-                </a>
-              </>
+              <a
+                href={location.appointment_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-[var(--accent-contrast)] no-underline"
+              >
+                {t("bookOnline")} ↗
+              </a>
             ) : null}
           </dd>
         </div>
@@ -106,6 +111,13 @@ export async function OfficialBlock({ location }: { location: LocationRow }) {
           {t("sourceLabel")}
         </a>
       </p>
+
+      {/* Right where the wrong detail is read — the first error a chat admin
+          reported was on this card, and the only way to report it was a link
+          further up in the community section. */}
+      <Link href={`/locations/${location.id}/suggest`} className="mt-2 inline-block text-sm underline">
+        {t("reportOfficialError")}
+      </Link>
     </section>
   );
 }

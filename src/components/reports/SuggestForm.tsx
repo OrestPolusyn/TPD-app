@@ -3,42 +3,64 @@
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import type { LocationRow } from "@/lib/matching/types";
-
-type Field = "address" | "postal_code" | "phone" | "appointment_url";
+import type { AppointmentMethod, LocationRow } from "@/lib/matching/types";
+import type { SuggestionField } from "@/lib/validation/suggestionSchema";
 
 interface FormValues {
-  field: Field;
+  field: SuggestionField;
   proposed_value: string;
 }
 
 export interface SuggestFormLabels {
   fieldLabel: string;
-  fieldNames: Record<Field, string>;
+  fieldNames: Record<SuggestionField, string>;
   currentValueLabel: string;
   proposedValueLabel: string;
+  /** Replaces proposedValueLabel for "other", where there is no value to replace. */
+  otherValueLabel: string;
+  appointmentMethodNames: Record<AppointmentMethod, string>;
   submitButton: string;
   submitting: string;
   successMessage: string;
   errorGeneric: string;
 }
 
-function currentValueFor(location: LocationRow, field: Field): string {
-  if (field === "address") return location.address ?? "";
-  if (field === "postal_code") return location.postal_code ?? "";
-  if (field === "phone") return location.phones.join(";");
-  return location.appointment_url ?? "";
+function currentValueFor(location: LocationRow, field: SuggestionField, labels: SuggestFormLabels): string {
+  switch (field) {
+    case "address":
+      return location.address ?? "";
+    case "postal_code":
+      return location.postal_code ?? "";
+    case "phone":
+      return location.phones.join(";");
+    case "email":
+      return location.email ?? "";
+    case "appointment_method":
+      return labels.appointmentMethodNames[location.appointment_method] ?? location.appointment_method;
+    case "appointment_url":
+      return location.appointment_url ?? "";
+    case "other":
+      return "";
+  }
 }
 
-export function SuggestForm({ location, labels }: { location: LocationRow; labels: SuggestFormLabels }) {
+export function SuggestForm({
+  location,
+  labels,
+  initialField = "address",
+}: {
+  location: LocationRow;
+  labels: SuggestFormLabels;
+  initialField?: SuggestionField;
+}) {
   const router = useRouter();
   const idPrefix = useId();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const { register, handleSubmit, watch } = useForm<FormValues>({
-    defaultValues: { field: "address", proposed_value: "" },
+  const { register, handleSubmit, watch, setValue } = useForm<FormValues>({
+    defaultValues: { field: initialField, proposed_value: "" },
   });
   const field = watch("field");
 
@@ -68,14 +90,21 @@ export function SuggestForm({ location, labels }: { location: LocationRow; label
     return <p className="text-sm">{labels.successMessage}</p>;
   }
 
+  const inputClass = "w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-2";
+  const valueId = `${idPrefix}-value`;
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
       <div>
         <label htmlFor={`${idPrefix}-field`} className="mb-1 block text-sm font-medium">
           {labels.fieldLabel}
         </label>
-        <select id={`${idPrefix}-field`} className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-2" {...register("field")}>
-          {(Object.keys(labels.fieldNames) as Field[]).map((f) => (
+        <select
+          id={`${idPrefix}-field`}
+          className={inputClass}
+          {...register("field", { onChange: () => setValue("proposed_value", "") })}
+        >
+          {(Object.keys(labels.fieldNames) as SuggestionField[]).map((f) => (
             <option key={f} value={f}>
               {labels.fieldNames[f]}
             </option>
@@ -83,15 +112,32 @@ export function SuggestForm({ location, labels }: { location: LocationRow; label
         </select>
       </div>
 
-      <p className="text-sm text-[var(--muted)]">
-        {labels.currentValueLabel}: {currentValueFor(location, field) || "—"}
-      </p>
+      {field !== "other" ? (
+        <p className="text-sm text-[var(--muted)]">
+          {labels.currentValueLabel}: {currentValueFor(location, field, labels) || "—"}
+        </p>
+      ) : null}
 
       <div>
-        <label htmlFor={`${idPrefix}-value`} className="mb-1 block text-sm font-medium">
-          {labels.proposedValueLabel}
+        <label htmlFor={valueId} className="mb-1 block text-sm font-medium">
+          {field === "other" ? labels.otherValueLabel : labels.proposedValueLabel}
         </label>
-        <input id={`${idPrefix}-value`} className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-2" {...register("proposed_value", { required: true })} />
+        {field === "appointment_method" ? (
+          // A fixed set of methods: picking one is quicker and gives the
+          // moderator an unambiguous value to copy.
+          <select id={valueId} className={inputClass} {...register("proposed_value", { required: true })}>
+            <option value="">—</option>
+            {Object.values(labels.appointmentMethodNames).map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        ) : field === "other" ? (
+          <textarea id={valueId} rows={4} maxLength={500} className={inputClass} {...register("proposed_value", { required: true })} />
+        ) : (
+          <input id={valueId} maxLength={500} className={inputClass} {...register("proposed_value", { required: true })} />
+        )}
       </div>
 
       {error ? (
