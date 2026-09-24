@@ -13,7 +13,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
-const { notifyNewReport, notifyNewSuggestion, notifyNewLocation, getModeratorChatId } = await import(
+const { notifyNewReport, notifyNewSuggestion, notifyNewLocation, notifyBriefChanged, getModeratorChatId } = await import(
   "./notifyModerator"
 );
 
@@ -68,6 +68,24 @@ describe("moderator notifications", () => {
     expect(call.params.text).toContain("Захист надано");
     expect(call.params.text).toContain("https://tp.example/locations/creade-madrid");
     // No placeholder should survive into a message a person reads.
+    expect(call.params.text).not.toMatch(/\{\w+\}/);
+  });
+
+  it("relays what changed about a community brief, with a link to the office", async () => {
+    const spy = okFetch();
+    await notifyBriefChanged({
+      locationId: "comisaria-malaga",
+      locationName: "Comisaría de Málaga",
+      detail: "З 25.09 Резерв+ більше не просять",
+      author: "Olena",
+    });
+
+    const [call] = sent(spy);
+    expect(call.params.chat_id).toBe(CHAT);
+    expect(call.params.text).toContain("Comisaría de Málaga");
+    expect(call.params.text).toContain("З 25.09 Резерв+ більше не просять");
+    expect(call.params.text).toContain("Olena");
+    expect(call.params.text).toContain("https://tp.example/locations/comisaria-malaga");
     expect(call.params.text).not.toMatch(/\{\w+\}/);
   });
 

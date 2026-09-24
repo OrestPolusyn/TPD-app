@@ -27,6 +27,9 @@ export const commentBodySchema = z.object({
 export const briefConfirmationSchema = z.object({
   location_id: z.string().trim().min(1).max(200),
   stance: z.enum(["still_true", "changed"]),
+  /** What is different now. Required when moving to "changed" (the route
+   * checks, since withdrawing an existing "changed" needs none). */
+  detail: z.string().trim().max(1000).optional(),
 });
 
 export type BriefConfirmationInput = z.infer<typeof briefConfirmationSchema>;

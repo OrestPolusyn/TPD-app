@@ -116,6 +116,7 @@ export default async function LocationPage({ params, searchParams }: LocationPag
       <CommunityBlock
         locationId={location.id}
         brief={brief}
+        signedIn={!!user}
         data={matchingData}
         reportDetails={reportDetails}
         flaggedReports={flaggedReports}

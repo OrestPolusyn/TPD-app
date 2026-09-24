@@ -136,3 +136,21 @@ export async function notifyNewLocation(notice: NewLocationNotice): Promise<void
       .replace("{id}", notice.locationId)
   );
 }
+
+export interface BriefChangedNotice {
+  locationId: string;
+  locationName: string;
+  detail: string;
+  author: string;
+}
+
+/** Someone says an office's community brief is out of date, and how. */
+export async function notifyBriefChanged(notice: BriefChangedNotice): Promise<void> {
+  await notify(
+    messages.telegramBot.briefChangedNotice
+      .replace("{location}", notice.locationName)
+      .replace("{detail}", notice.detail)
+      .replace("{author}", notice.author)
+      .replace("{url}", locationUrl(notice.locationId))
+  );
+}

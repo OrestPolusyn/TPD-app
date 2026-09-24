@@ -107,6 +107,7 @@ async function ReportCard({
 export async function CommunityBlock({
   locationId,
   brief,
+  signedIn,
   data,
   reportDetails,
   flaggedReports,
@@ -115,6 +116,7 @@ export async function CommunityBlock({
 }: {
   locationId: string;
   brief: Brief | null;
+  signedIn: boolean;
   data: LocationPageData;
   reportDetails: Map<string, ReportDetail>;
   flaggedReports: ReportDetail[];
@@ -144,7 +146,7 @@ export async function CommunityBlock({
           what people open this page to find out. Kept to two short lists so
           the actual reports below stay on screen; it is not one person's
           visit and is not counted in the outcome statistics above. */}
-      <CommunityBrief locationId={locationId} brief={brief} />
+      <CommunityBrief locationId={locationId} brief={brief} signedIn={signedIn} />
 
       {data.policy_change ? (
         <p role="note" className="rounded bg-[var(--highlight-bg)] p-2 text-sm">

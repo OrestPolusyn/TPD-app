@@ -16,7 +16,15 @@ const STALE_AFTER_DAYS = 45;
  * experiences belong in reports, where they carry a date, an outcome and a
  * comment thread; this is only the distilled checklist.
  */
-export async function CommunityBrief({ locationId, brief }: { locationId: string; brief: Brief | null }) {
+export async function CommunityBrief({
+  locationId,
+  brief,
+  signedIn,
+}: {
+  locationId: string;
+  brief: Brief | null;
+  signedIn: boolean;
+}) {
   if (!brief) return null;
   const t = await getTranslations("location");
   const tCommon = await getTranslations("common");
@@ -74,6 +82,7 @@ export async function CommunityBrief({ locationId, brief }: { locationId: string
         <span className="text-xs text-[var(--muted)]">{t("briefSource")}</span>
         <BriefConfirm
           locationId={locationId}
+          signedIn={signedIn}
           stance={brief.my_stance}
           stillTrue={brief.still_true}
           changed={brief.changed}
@@ -83,6 +92,12 @@ export async function CommunityBrief({ locationId, brief }: { locationId: string
             deny: t("briefDeny"),
             signIn: t("briefSignIn"),
             generic: tCommon("errorGeneric"),
+            changedTitle: t("briefChangedTitle"),
+            changedHint: t("briefChangedHint"),
+            changedPlaceholder: t("briefChangedPlaceholder"),
+            changedSubmit: t("briefChangedSubmit"),
+            changedCancel: t("briefChangedCancel"),
+            changedThanks: t("briefChangedThanks"),
           }}
         />
       </div>
