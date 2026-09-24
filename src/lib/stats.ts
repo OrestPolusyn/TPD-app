@@ -5,6 +5,16 @@ import messages from "../../messages/uk.json";
 export const STATS_WINDOW_DAYS = 30;
 
 export interface SiteStats {
+  /** Anonymous visitors, signed in or not (0027). A person counts once per
+   * day, so 7/30-day figures are sums of daily visitors, not unique people. */
+  visits: {
+    today: number;
+    last7: number;
+    last30: number;
+    views30: number;
+    byDay: { date: string; count: number }[];
+    topPaths: { path: string; views: number; visitors: number }[];
+  };
   users: { total: number; today: number; last7: number; last30: number };
   /** One entry per Madrid calendar day, oldest first, zero-filled. */
   signupsByDay: { date: string; count: number }[];
@@ -58,7 +68,9 @@ export async function getSiteStats(admin: SupabaseClient, now: Date = new Date()
   const since = new Date(now.getTime() - (STATS_WINDOW_DAYS + 1) * 86_400_000).toISOString();
   const weekAgo = new Date(now.getTime() - 7 * 86_400_000).toISOString();
 
-  const [recent, latest, totalUsers, reports, reports7, comments, briefVotes, pending] = await Promise.all([
+  const [visitDays, topPaths, recent, latest, totalUsers, reports, reports7, comments, briefVotes, pending] = await Promise.all([
+    admin.rpc("visit_stats", { p_since: days[0] }),
+    admin.rpc("top_paths", { p_since: days[0], p_limit: 8 }),
     admin.from("profiles").select("created_at").gte("created_at", since),
     admin
       .from("profiles")
@@ -72,6 +84,8 @@ export async function getSiteStats(admin: SupabaseClient, now: Date = new Date()
     count(admin.from("location_brief_confirmations").select("user_id", { count: "exact", head: true })),
     count(admin.from("location_suggestions").select("id", { count: "exact", head: true }).eq("status", "pending")),
   ]);
+  if (visitDays.error) throw visitDays.error;
+  if (topPaths.error) throw topPaths.error;
   if (recent.error) throw recent.error;
   if (latest.error) throw latest.error;
 
@@ -79,7 +93,25 @@ export async function getSiteStats(admin: SupabaseClient, now: Date = new Date()
   const signupsByDay = countByDay(recentTimes, days);
   const sumLast = (n: number) => signupsByDay.slice(-n).reduce((s, d) => s + d.count, 0);
 
+  const visitsByDate = new Map(
+    ((visitDays.data ?? []) as { day: string; visitors: number; views: number }[]).map((r) => [r.day, r])
+  );
+  const visitorsByDay = days.map((date) => ({ date, count: Number(visitsByDate.get(date)?.visitors ?? 0) }));
+  const sumVisitors = (n: number) => visitorsByDay.slice(-n).reduce((s, d) => s + d.count, 0);
+
   return {
+    visits: {
+      today: sumVisitors(1),
+      last7: sumVisitors(7),
+      last30: sumVisitors(STATS_WINDOW_DAYS),
+      views30: [...visitsByDate.values()].reduce((s, r) => s + Number(r.views), 0),
+      byDay: visitorsByDay,
+      topPaths: ((topPaths.data ?? []) as { path: string; views: number; visitors: number }[]).map((r) => ({
+        path: r.path,
+        views: Number(r.views),
+        visitors: Number(r.visitors),
+      })),
+    },
     users: { total: totalUsers, today: sumLast(1), last7: sumLast(7), last30: sumLast(STATS_WINDOW_DAYS) },
     signupsByDay,
     latestUsers: (latest.data ?? []).map((u) => ({
@@ -97,6 +129,10 @@ export async function getSiteStats(admin: SupabaseClient, now: Date = new Date()
 /** The bot's /stats reply. */
 export function formatStatsMessage(stats: SiteStats, siteUrl: string): string {
   return messages.telegramBot.statsNotice
+    .replace("{vToday}", String(stats.visits.today))
+    .replace("{v7}", String(stats.visits.last7))
+    .replace("{v30}", String(stats.visits.last30))
+    .replace("{views30}", String(stats.visits.views30))
     .replace("{total}", String(stats.users.total))
     .replace("{today}", String(stats.users.today))
     .replace("{last7}", String(stats.users.last7))

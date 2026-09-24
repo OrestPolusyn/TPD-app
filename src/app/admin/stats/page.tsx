@@ -25,20 +25,20 @@ function Tile({ label, value, accent = false }: { label: string; value: number; 
 }
 
 /**
- * Sign-ups per day as thin bars — one series, so one colour and no legend;
+ * A per-day count as thin bars — one series, so one colour and no legend;
  * the title names it. Plain HTML rather than a chart library: this page is
  * for one person and the bundle budget is shared with pages that are not.
  * Each bar carries its own hover tooltip and aria-label, and the same numbers
  * sit in a visually hidden table for screen readers.
  */
-async function SignupsChart({ data }: { data: SiteStats["signupsByDay"] }) {
+async function DailyBars({ title, data }: { title: string; data: SiteStats["signupsByDay"] }) {
   const t = await getTranslations("adminStats");
   const max = Math.max(1, ...data.map((d) => d.count));
   const middle = data[Math.floor(data.length / 2)];
 
   return (
     <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
-      <h2 className="mb-3 text-sm font-medium">{t("chartTitle")}</h2>
+      <h2 className="mb-3 text-sm font-medium">{title}</h2>
 
       <div className="flex h-32 items-end gap-[2px] border-b border-[var(--border)]" aria-hidden="true">
         {data.map((d) => (
@@ -60,7 +60,7 @@ async function SignupsChart({ data }: { data: SiteStats["signupsByDay"] }) {
       </div>
 
       <table className="sr-only">
-        <caption>{t("chartTitle")}</caption>
+        <caption>{title}</caption>
         <thead>
           <tr>
             <th scope="col">{t("tableDate")}</th>
@@ -80,6 +80,31 @@ async function SignupsChart({ data }: { data: SiteStats["signupsByDay"] }) {
   );
 }
 
+const PAGE_NAMES: Record<string, string> = {
+  "/": "Головна",
+  "/results": "Результати пошуку",
+  "/locations": "Усі локації",
+  "/feed": "Нові звіти",
+  "/faq": "Питання",
+  "/me": "Мій кабінет",
+  "/reports/new": "Новий звіт",
+  "/about": "Про проєкт",
+  "/privacy": "Приватність",
+};
+
+/** Readable names for the top pages: fixed ones by path, offices by name. */
+async function namePaths(admin: ReturnType<typeof createAdminClient>, paths: string[]): Promise<Map<string, string>> {
+  const names = new Map(paths.filter((p) => p in PAGE_NAMES).map((p) => [p, PAGE_NAMES[p]]));
+  const officeIds = paths.map((p) => /^\/locations\/([^/]+)$/.exec(p)?.[1]).filter((id): id is string => !!id);
+  if (officeIds.length > 0) {
+    const { data } = await admin.from("locations").select("id, city, type").in("id", officeIds);
+    for (const loc of data ?? []) {
+      names.set(`/locations/${loc.id}`, `${loc.type === "creade" ? "CREADE" : "Поліція"} — ${loc.city}`);
+    }
+  }
+  return names;
+}
+
 export default async function AdminStatsPage() {
   const supabase = await createClient();
   const {
@@ -93,7 +118,9 @@ export default async function AdminStatsPage() {
   if (me?.role !== "moderator") notFound();
 
   const t = await getTranslations("adminStats");
-  const stats = await getSiteStats(createAdminClient());
+  const admin = createAdminClient();
+  const stats = await getSiteStats(admin);
+  const pageNames = await namePaths(admin, stats.visits.topPaths.map((p) => p.path));
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 p-4 sm:p-6">
@@ -102,6 +129,38 @@ export default async function AdminStatsPage() {
         <p className="mt-1 text-sm text-[var(--muted)]">{t("subtitle")}</p>
       </div>
 
+      <section className="flex flex-col gap-3">
+        <div>
+          <h2 className="text-sm font-medium">{t("visitorsTitle")}</h2>
+          <p className="text-xs text-[var(--muted)]">{t("visitorsHint")}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Tile label={t("visitorsToday")} value={stats.visits.today} accent />
+          <Tile label={t("visitors7")} value={stats.visits.last7} />
+          <Tile label={t("visitors30")} value={stats.visits.last30} />
+          <Tile label={t("views30")} value={stats.visits.views30} />
+        </div>
+        <DailyBars title={t("visitorsChartTitle")} data={stats.visits.byDay} />
+        {stats.visits.topPaths.length > 0 ? (
+          <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
+            <h3 className="mb-2 text-sm font-medium">{t("topPagesTitle")}</h3>
+            <ul className="flex flex-col divide-y divide-[var(--border)] text-sm">
+              {stats.visits.topPaths.map((p) => (
+                <li key={p.path} className="flex items-baseline justify-between gap-3 py-1.5">
+                  <a href={p.path} className="min-w-0 truncate underline">
+                    {pageNames.get(p.path) ?? p.path}
+                  </a>
+                  <span className="shrink-0 text-xs tabular-nums text-[var(--muted)]">
+                    {t("topPagesViews", { views: p.views, visitors: p.visitors })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </section>
+
+      <h2 className="-mb-2 text-sm font-medium">{t("usersTitle")}</h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Tile label={t("usersTotal")} value={stats.users.total} accent />
         <Tile label={t("usersToday")} value={stats.users.today} />
@@ -109,7 +168,7 @@ export default async function AdminStatsPage() {
         <Tile label={t("users30")} value={stats.users.last30} />
       </div>
 
-      <SignupsChart data={stats.signupsByDay} />
+      <DailyBars title={t("chartTitle")} data={stats.signupsByDay} />
 
       <section>
         <h2 className="mb-2 text-sm font-medium">{t("activityTitle")}</h2>

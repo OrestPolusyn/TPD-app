@@ -35,6 +35,11 @@ export default async function PrivacyPage() {
       </section>
 
       <section>
+        <h2 className="mb-1 font-medium">{t("visitsTitle")}</h2>
+        <p className="text-sm">{t("visitsBody")}</p>
+      </section>
+
+      <section>
         <h2 className="mb-1 font-medium">{t("retentionTitle")}</h2>
         <p className="text-sm">{t("retentionBody")}</p>
       </section>

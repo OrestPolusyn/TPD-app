@@ -5,6 +5,7 @@ import { NavBar } from "@/components/shared/NavBar";
 import { Footer } from "@/components/shared/Footer";
 import { TelegramProvider } from "@/components/telegram/TelegramProvider";
 import { BackButtonBridge } from "@/components/telegram/BackButtonBridge";
+import { VisitBeacon } from "@/components/shared/VisitBeacon";
 import "./globals.css";
 
 // Self-hosted (next/font downloads at build time, no runtime request to
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-full flex flex-col bg-[var(--background)] text-[var(--foreground)] antialiased">
         <TelegramProvider>
           <BackButtonBridge />
+          <VisitBeacon />
           <NavBar />
           {children}
           <Footer />
