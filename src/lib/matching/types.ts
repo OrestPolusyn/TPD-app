@@ -59,6 +59,9 @@ export interface LocationRow {
   verified_at: string;
   verification_status: VerificationStatus;
   notes: string | null;
+  /** False for offices in the official list that do not take applications
+   * (one office per province does) — see supabase/migrations/0021. */
+  accepts_applications: boolean;
   moderation_status: ModerationStatus;
 }
 

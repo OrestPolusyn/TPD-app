@@ -22,7 +22,9 @@ export async function LocationCard({
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="font-medium">{location.name}</h3>
-          <p className="text-sm text-[var(--muted)]">{location.city}</p>
+          <p className="text-sm text-[var(--muted)]">
+            {location.city === location.province ? location.city : `${location.city}, ${location.province}`}
+          </p>
         </div>
       </div>
 

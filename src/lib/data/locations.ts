@@ -93,13 +93,17 @@ export async function getLocationById(
 }
 
 /**
- * Calls fn_search_results for a province, returning locations in the exact
- * order the matching function already sorted them in (fresh matches desc,
- * latest match date desc, name asc — see supabase/migrations/0007_matching.sql).
+ * Calls fn_search_results, returning locations in the exact order the
+ * matching function already sorted them in (fresh matches desc, latest match
+ * date desc, province asc — see supabase/migrations/0021).
+ *
+ * `provinceSlug` null searches all of Spain, which is what the search form
+ * does: one office per province takes applications, so the result is one
+ * card per province. A slug is still honoured for old shared links.
  */
 export async function searchLocations(
   supabase: SupabaseClient,
-  params: { provinceSlug: string; userDocs: string[]; militaryFilter: string | null }
+  params: { provinceSlug: string | null; userDocs: string[]; militaryFilter: string | null }
 ): Promise<{ location: LocationRow; data: SearchResultRow["data"] }[]> {
   const { data: rpcData, error } = await supabase.rpc("fn_search_results", {
     p_province_slug: params.provinceSlug,

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
-import { getProvinces, getPublishedLocationsGroupedByProvince } from "@/lib/data/locations";
+import { getPublishedLocationsGroupedByProvince } from "@/lib/data/locations";
 import { getActiveDocumentTypes } from "@/lib/data/documentTypes";
 import { SearchForm } from "@/components/search/SearchForm";
 import { Card } from "@/components/shared/Card";
@@ -29,12 +29,9 @@ async function MapSection({ openLocationLabel }: { openLocationLabel: string }) 
 
 async function SearchSection() {
   const supabase = await createClient();
-  const [provinces, documentTypes] = await Promise.all([
-    getProvinces(supabase),
-    getActiveDocumentTypes(supabase),
-  ]);
+  const documentTypes = await getActiveDocumentTypes(supabase);
 
-  return <SearchForm provinces={provinces} documentTypes={documentTypes} />;
+  return <SearchForm documentTypes={documentTypes} />;
 }
 
 export default async function HomePage() {

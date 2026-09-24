@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { searchLocations, getProvinces } from "@/lib/data/locations";
+import { searchLocations } from "@/lib/data/locations";
 import { LocationCard } from "@/components/results/LocationCard";
 import { Disclaimer } from "@/components/shared/Disclaimer";
 import { Card } from "@/components/shared/Card";
@@ -36,29 +36,28 @@ export default async function ResultsPage({ searchParams }: ResultsPageProps) {
   const t = await getTranslations("results");
   const supabase = await createClient();
 
-  const provinceSlug = params.province ?? "";
+  // Only from old shared links: the form no longer asks for a province.
+  const provinceSlug = params.province || null;
   const userDocs = normalizeDocsParam(params.docs);
   const militaryFilter = params.mil ?? null;
   const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
 
-  const [results, provinces] = await Promise.all([
-    provinceSlug ? searchLocations(supabase, { provinceSlug, userDocs, militaryFilter }) : Promise.resolve([]),
-    getProvinces(supabase),
-  ]);
+  // A search with no documents ticked has nothing to match on — every office
+  // would come back as "no matches". Ask for one instead of listing 52 blanks.
+  const results = userDocs.length > 0 ? await searchLocations(supabase, { provinceSlug, userDocs, militaryFilter }) : [];
 
-  const province = provinces.find((p) => p.province_slug === provinceSlug);
   const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
   const pageResults = results.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const anyFreshMatches = results.some((r) => r.data.fresh_matching_count > 0);
   const cardSearchQuery = buildQueryString(params, {});
 
-  if (!provinceSlug) {
+  if (userDocs.length === 0) {
     return (
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-6">
         <Card className="text-sm">
-          <p>{t("noProvinceSelected")}</p>
-          <Link href="/locations" className="mt-2 inline-block underline">
-            {t("noProvinceSelectedCta")}
+          <p>{t("noDocsSelected")}</p>
+          <Link href="/#search-form" className="mt-2 inline-block underline">
+            {t("noDocsSelectedCta")}
           </Link>
         </Card>
       </main>
@@ -67,7 +66,10 @@ export default async function ResultsPage({ searchParams }: ResultsPageProps) {
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-6">
-      <h1 className="text-2xl font-bold tracking-tight">{t("title", { province: province?.province ?? provinceSlug })}</h1>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
+        <p className="mt-1 text-sm text-[var(--muted)]">{t("subtitle")}</p>
+      </div>
 
       {results.length === 0 ? (
         <Card className="text-sm">

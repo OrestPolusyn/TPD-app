@@ -1,6 +1,5 @@
 import Form from "next/form";
 import { getTranslations } from "next-intl/server";
-import type { ProvinceOption } from "@/lib/data/locations";
 import type { DocumentTypeRow } from "@/lib/data/documentTypes";
 import { CHECKLIST_DOCUMENT_CODES } from "@/lib/matching/types";
 import { MainButtonBridge } from "@/components/telegram/MainButtonBridge";
@@ -16,42 +15,18 @@ import { SubmitButton } from "@/components/search/SubmitButton";
  * loading.tsx) and submits as a client-side navigation, so the skeleton appears
  * immediately instead of the page sitting frozen while fn_search_results runs.
  * It degrades to a normal GET submit without JS.
+ *
+ * No province field: one office per province takes applications, so the
+ * results are one card per province across Spain, ranked by where people
+ * with these documents were accepted. Asking for a province first made
+ * people choose before they could compare.
  */
-export async function SearchForm({
-  provinces,
-  documentTypes,
-}: {
-  provinces: ProvinceOption[];
-  documentTypes: DocumentTypeRow[];
-}) {
+export async function SearchForm({ documentTypes }: { documentTypes: DocumentTypeRow[] }) {
   const t = await getTranslations("home");
   const checklist = documentTypes.filter((d) => (CHECKLIST_DOCUMENT_CODES as readonly string[]).includes(d.code));
 
   return (
     <Form id="search-form" action="/results" className="flex flex-col gap-5">
-      <div>
-        <label htmlFor="province" className="mb-1 block text-sm font-medium">
-          {t("provinceLabel")}
-        </label>
-        {/* Deliberately not `required`: a native validation block silently
-            swallows the click (no navigation, easy-to-miss bubble), which
-            reads as "the search button is broken". /results handles a
-            missing province with an explicit prompt instead. */}
-        <select
-          id="province"
-          name="province"
-          defaultValue=""
-          className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface)] p-2"
-        >
-          <option value="">{t("provincePlaceholder")}</option>
-          {provinces.map((p) => (
-            <option key={p.province_slug} value={p.province_slug}>
-              {p.province}
-            </option>
-          ))}
-        </select>
-      </div>
-
       <fieldset>
         <legend className="mb-1 text-sm font-medium">{t("docsLabel")}</legend>
         <p className="mb-2 text-xs text-[var(--muted)]">{t("docsHint")}</p>
