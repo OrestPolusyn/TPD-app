@@ -7,7 +7,7 @@ MISSM = "https://ucraniaurgente.inclusion.gob.es/proteccion-temporal1"
 MISSM_OLD = "https://ucraniaurgente.inclusion.gob.es/w/tramites-proteccion-temporal-desplazados-ucrania"
 MISSM_MIRROR = "https://ucraniaurgente.seg-social.es/w/tramites-proteccion-temporal-desplazados-ucrania"
 # The exact link the "MODALIDAD CITA PREVIA" column points at.
-ICP = "https://sede.administracionespublicas.gob.es/pagina/index/directorio/icpplus"
+ICP = "https://icp.administracionelectronica.gob.es/icpplus/index.html"
 
 FIELDS = ["id","name","type","region","province","city","address","postal_code","phone","email",
           "appointment_method","appointment_url","source_url","official_list_url","source_date",
