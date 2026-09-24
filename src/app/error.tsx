@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import messages from "../../messages/uk.json";
+import { errorCopy } from "./errorCopy";
 
 /**
  * Root error boundary. Next.js routes any uncaught error from a Server
@@ -9,11 +9,11 @@ import messages from "../../messages/uk.json";
  * per docs/SPEC.md: "human-readable message plus a retry button. Raw error
  * text is never shown."
  *
- * Reads messages/uk.json directly (not via next-intl's useTranslations)
+ * Takes its strings from ./errorCopy (not via next-intl's useTranslations)
  * deliberately: this is the one unavoidable client component on every route,
- * and pulling in next-intl's client runtime + provider just for two short
- * strings would reintroduce the client-JS weight this file exists to avoid.
- * The strings still live only in messages/uk.json, per that same spec rule.
+ * and pulling in next-intl's client runtime + provider — or all of
+ * messages/uk.json — for three short strings would put that weight on every
+ * page. errorCopy.test.ts keeps them identical to messages/uk.json.
  */
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
@@ -22,13 +22,13 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
 
   return (
     <div role="alert" className="mx-auto flex w-full max-w-md flex-1 flex-col items-start gap-3 p-4">
-      <p className="text-sm">{messages.common.errorGeneric}</p>
+      <p className="text-sm">{errorCopy.errorGeneric}</p>
       <button
         type="button"
         onClick={reset}
         className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm font-medium"
       >
-        {messages.common.retry}
+        {errorCopy.retry}
       </button>
 
       {/* Collapsed by default, so the spec's "no raw error text" holds for
@@ -37,7 +37,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
           gives only `digest`, which matches the Vercel log line. */}
       {error.digest || error.message ? (
         <details className="w-full text-xs text-[var(--muted)]">
-          <summary className="cursor-pointer">{messages.common.errorDetails}</summary>
+          <summary className="cursor-pointer">{errorCopy.errorDetails}</summary>
           <p className="mt-1 break-all font-mono">
             {error.digest ? `digest: ${error.digest}` : null}
             {error.digest && error.message ? " — " : null}

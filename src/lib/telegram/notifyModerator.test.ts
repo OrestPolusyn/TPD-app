@@ -13,7 +13,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
-const { notifyNewReport, notifyNewSuggestion, notifyNewLocation, notifyBriefChanged, getModeratorChatId } = await import(
+const { notifyNewReport, notifyNewSuggestion, notifyNewLocation, notifyBriefChanged, notifyNewUser, getModeratorChatId } = await import(
   "./notifyModerator"
 );
 
@@ -87,6 +87,23 @@ describe("moderator notifications", () => {
     expect(call.params.text).toContain("Olena");
     expect(call.params.text).toContain("https://tp.example/locations/comisaria-malaga");
     expect(call.params.text).not.toMatch(/\{\w+\}/);
+  });
+
+  it("announces a new user with their @username and the running total", async () => {
+    const spy = okFetch();
+    await notifyNewUser({ name: "Olena", username: "olena_k", total: 12 });
+
+    const [call] = sent(spy);
+    expect(call.params.chat_id).toBe(CHAT);
+    expect(call.params.text).toContain("Olena (@olena_k)");
+    expect(call.params.text).toContain("12");
+    expect(call.params.text).not.toMatch(/\{\w+\}/);
+  });
+
+  it("leaves the @ out when a new user has no Telegram username", async () => {
+    const spy = okFetch();
+    await notifyNewUser({ name: "Olena", username: null, total: 1 });
+    expect(sent(spy)[0].params.text).not.toContain("@");
   });
 
   it("sends a suggestion as before → after", async () => {

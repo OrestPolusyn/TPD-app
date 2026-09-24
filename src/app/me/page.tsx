@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { getSuggestionFieldLabels } from "@/lib/suggestionLabels";
 import { createClient } from "@/lib/supabase/server";
@@ -76,7 +77,14 @@ export default async function MePage() {
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 p-4 sm:p-6">
-      <h1 className="text-2xl font-bold tracking-tight">{tMe("title")}</h1>
+      <div className="flex items-baseline justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">{tMe("title")}</h1>
+        {profile.role === "moderator" ? (
+          <Link href="/admin/stats" className="text-sm underline">
+            {tMe("statsLink")}
+          </Link>
+        ) : null}
+      </div>
 
       <DisplayNameEditor
         currentDisplayName={profile.display_name}

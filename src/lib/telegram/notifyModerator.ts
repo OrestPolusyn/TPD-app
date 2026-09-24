@@ -154,3 +154,19 @@ export async function notifyBriefChanged(notice: BriefChangedNotice): Promise<vo
       .replace("{url}", locationUrl(notice.locationId))
   );
 }
+
+export interface NewUserNotice {
+  name: string;
+  username: string | null;
+  total: number;
+}
+
+/** Someone signed in for the first time. */
+export async function notifyNewUser(notice: NewUserNotice): Promise<void> {
+  await notify(
+    messages.telegramBot.newUserNotice
+      .replace("{name}", notice.name)
+      .replace("{username}", notice.username ? ` (@${notice.username})` : "")
+      .replace("{total}", String(notice.total))
+  );
+}

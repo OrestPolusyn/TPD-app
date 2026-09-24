@@ -283,7 +283,8 @@
     "deleteAccountConfirmTitle": "Видалити акаунт?",
     "deleteAccountConfirmBody": "Буде видалено ваш профіль, усі звіти, коментарі, скарги та пропозиції. Це незворотньо.",
     "deleteAccountConfirmButton": "Так, видалити",
-    "deleteAccountSuccess": "Акаунт видалено."
+    "deleteAccountSuccess": "Акаунт видалено.",
+    "statsLink": "Статистика сайту"
   },
   "auth": {
     "loginTitle": "Увійти через Telegram",
@@ -424,7 +425,9 @@
     "newLocationNotice": "Пропозиція нової локації\n\n{description}\n\nАвтор: {author}\nID: {id}\n\nПотребує перевірки й публікації в Supabase.",
     "testNotice": "Перевірка звʼязку. Сюди приходитимуть нові звіти та пропозиції з сайту.",
     "idNotice": "ID цього чату: {id}\n\nВставте його у змінну TELEGRAM_ADMIN_CHAT_ID у налаштуваннях розгортання — і сюди приходитимуть нові звіти та пропозиції.",
-    "briefChangedNotice": "Інформація спільноти змінилась\n\n{location}\nЩо змінилось: {detail}\nАвтор: {author}\n\n{url}"
+    "briefChangedNotice": "Інформація спільноти змінилась\n\n{location}\nЩо змінилось: {detail}\nАвтор: {author}\n\n{url}",
+    "newUserNotice": "Новий користувач 🎉\n\n{name}{username}\nВсього користувачів: {total}",
+    "statsNotice": "Статистика TP Spain\n\nКористувачі: {total}\n• сьогодні: +{today}\n• за 7 днів: +{last7}\n• за 30 днів: +{last30}\n\nЗвіти: {reports} (за 7 днів: +{reports7})\nКоментарі: {comments}\nГолоси «Актуально?»: {votes}\nПравки на перевірці: {pending}\n\n{url}"
   },
   "theme": {
     "label": "Тема",
@@ -435,5 +438,25 @@
     "title": "Що нового",
     "subtitle": "Останні звіти з усіх локацій — від найсвіжіших.",
     "empty": "Поки що звітів немає. Ваш може стати першим."
+  },
+  "adminStats": {
+    "title": "Статистика",
+    "subtitle": "Бачите лише ви. Дати — за часом Іспанії.",
+    "usersTotal": "Користувачів",
+    "usersToday": "Сьогодні",
+    "users7": "За 7 днів",
+    "users30": "За 30 днів",
+    "chartTitle": "Нові користувачі за 30 днів",
+    "chartBar": "{date}: {count, plural, =0 {нікого} one {# людина} few {# людини} other {# людей}}",
+    "tableDate": "Дата",
+    "tableCount": "Нових",
+    "activityTitle": "Активність",
+    "reports": "Звітів",
+    "reports7": "Звітів за 7 днів",
+    "comments": "Коментарів",
+    "briefVotes": "Голосів «Актуально?»",
+    "pendingSuggestions": "Правок на перевірці",
+    "latestTitle": "Останні, хто долучився",
+    "botHint": "Те саме в боті: команда /stats. Про кожного нового користувача бот пише вам одразу."
   }
 }

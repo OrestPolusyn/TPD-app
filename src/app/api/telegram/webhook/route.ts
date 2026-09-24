@@ -3,6 +3,9 @@ import { callTelegram, getWebhookInfo } from "@/lib/telegram/api";
 import { deriveWebhookSecret } from "@/lib/telegram/webhookSecret";
 import { approveLoginRequest, findPendingLoginRequest } from "@/lib/telegram/loginRequests";
 import { config } from "@/lib/config";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getModeratorChatId } from "@/lib/telegram/notifyModerator";
+import { getSiteStats, formatStatsMessage } from "@/lib/stats";
 import messages from "../../../../../messages/uk.json";
 
 export const dynamic = "force-dynamic";
@@ -105,6 +108,20 @@ async function handleMessage(token: string, update: TelegramUpdate) {
     await send(token, "sendMessage", {
       chat_id: chatId,
       text: messages.telegramBot.idNotice.replace("{id}", String(chatId)),
+    });
+    return;
+  }
+
+  // /stats is for the owner: answered only in the moderator chat, silently
+  // ignored anywhere else, so nobody learns it exists by trying it.
+  if (command === "/stats") {
+    const moderatorChat = await getModeratorChatId();
+    if (!moderatorChat || moderatorChat !== String(chatId)) return;
+    const stats = await getSiteStats(createAdminClient());
+    await send(token, "sendMessage", {
+      chat_id: chatId,
+      text: formatStatsMessage(stats, config.siteUrl()),
+      link_preview_options: { is_disabled: true },
     });
     return;
   }

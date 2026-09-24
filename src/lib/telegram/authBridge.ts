@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient as createServerSupabaseClient } from "@/lib/supabase/server";
+import { notifyNewUser } from "@/lib/telegram/notifyModerator";
 
 // RFC 2606 reserves ".invalid" for exactly this: an address guaranteed to
 // never resolve or deliver. Supabase Auth requires an email-shaped identifier
@@ -55,6 +56,11 @@ export async function signInTelegramUser(
     return { ok: false, error: linkError?.message ?? "generateLink returned no hashed_token" };
   }
 
+  // Checked before the upsert below creates the row: a first login is the
+  // one worth telling the owner about.
+  const { data: existingProfile } = await admin.from("profiles").select("id").eq("id", linkData.user.id).maybeSingle();
+  const isNewUser = !existingProfile;
+
   // Refreshed on every login so a changed Telegram name/photo catches up here
   // too — deliberately never touches `display_name`, the person's own
   // override (set via set_own_display_name), which this must not clobber.
@@ -87,5 +93,24 @@ export async function signInTelegramUser(
     return { ok: false, error: verifyError.message };
   }
 
+  if (isNewUser) await announceNewUser(admin, displayProfile);
+
   return { ok: true };
+}
+
+/**
+ * Tells the owner's Telegram that someone new joined, with the running total.
+ * Best effort: a sign-in must never fail because the notice could not be sent.
+ */
+async function announceNewUser(admin: ReturnType<typeof createAdminClient>, profile?: TelegramDisplayProfile) {
+  try {
+    const { count } = await admin.from("profiles").select("id", { count: "exact", head: true });
+    await notifyNewUser({
+      name: profile?.firstName?.trim() || "Без імені",
+      username: profile?.username ?? null,
+      total: count ?? 0,
+    });
+  } catch (err) {
+    console.error("new-user notice failed:", err);
+  }
 }

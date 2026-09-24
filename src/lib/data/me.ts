@@ -31,6 +31,7 @@ export interface OwnProfile {
   display_name: string | null;
   telegram_first_name: string | null;
   avatar_url: string | null;
+  role: "user" | "moderator";
 }
 
 /** The caller's own profile row, straight from `profiles` (not
@@ -40,11 +41,11 @@ export interface OwnProfile {
 export async function getOwnProfile(supabase: SupabaseClient, userId: string): Promise<OwnProfile> {
   const { data, error } = await supabase
     .from("profiles")
-    .select("display_name, telegram_first_name, avatar_url")
+    .select("display_name, telegram_first_name, avatar_url, role")
     .eq("id", userId)
     .maybeSingle();
   if (error) throw error;
-  return data ?? { display_name: null, telegram_first_name: null, avatar_url: null };
+  return data ?? { display_name: null, telegram_first_name: null, avatar_url: null, role: "user" };
 }
 
 /** RLS's "published or own" SELECT policy is a visibility gate, not a "mine
