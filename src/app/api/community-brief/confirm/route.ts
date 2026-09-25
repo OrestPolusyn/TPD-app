@@ -74,6 +74,7 @@ export async function POST(request: Request) {
     ]);
     await notifyBriefChanged({
       locationId: location_id,
+      userId: user.id,
       locationName: (location?.name as string) ?? location_id,
       detail,
       author,

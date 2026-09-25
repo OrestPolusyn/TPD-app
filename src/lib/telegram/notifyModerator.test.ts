@@ -1,13 +1,13 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 
 /** The app_settings fallback, stubbed: these tests are about the messages. */
-const settingsRow = vi.fn<() => Promise<{ data: { value: string } | null; error: null }>>();
+const settingsRow = vi.fn<(key: string) => Promise<{ data: { value: string } | null; error: null }>>();
 
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: () => ({
       select: () => ({
-        eq: () => ({ maybeSingle: settingsRow }),
+        eq: (_column: string, key: string) => ({ maybeSingle: () => settingsRow(key) }),
       }),
     }),
   }),
@@ -30,13 +30,20 @@ function sent(spy: { mock: { calls: unknown[][] } }) {
   });
 }
 
+/** A fresh Response per call: a body can only be read once. */
 function okFetch() {
-  return vi.spyOn(globalThis, "fetch").mockResolvedValue(
-    new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json" } })
-  );
+  return vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async () => new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json" } }));
+}
+
+/** Only the moderator chat is stored; every other setting is unset. */
+function onlyModeratorChat(value: string) {
+  settingsRow.mockImplementation(async (key) => ({ data: key === "moderator_chat_id" ? { value } : null, error: null }));
 }
 
 const REPORT = {
+  reportId: "00000000-0000-4000-8000-000000000001",
   locationId: "creade-madrid",
   locationName: "CREADE Pozuelo",
   outcome: "Захист надано",
@@ -75,6 +82,7 @@ describe("moderator notifications", () => {
     const spy = okFetch();
     await notifyBriefChanged({
       locationId: "comisaria-malaga",
+      userId: "00000000-0000-4000-8000-000000000002",
       locationName: "Comisaría de Málaga",
       detail: "З 25.09 Резерв+ більше не просять",
       author: "Olena",
@@ -104,6 +112,50 @@ describe("moderator notifications", () => {
     const spy = okFetch();
     await notifyNewUser({ name: "Olena", username: null, total: 1 });
     expect(sent(spy)[0].params.text).not.toContain("@");
+  });
+
+  it("sends through the separate admin bot when one is configured", async () => {
+    vi.stubEnv("TELEGRAM_ADMIN_BOT_TOKEN", "999:admin-token");
+    const spy = okFetch();
+    await notifyNewReport(REPORT);
+
+    const urls = spy.mock.calls.map((c) => String(c[0]));
+    const send = urls.find((u) => u.endsWith("/sendMessage"));
+    expect(send).toContain("bot999:admin-token/");
+    expect(urls.some((u) => u.includes(TOKEN))).toBe(false);
+  });
+
+  it("falls back to the login bot when the admin bot cannot write yet", async () => {
+    vi.stubEnv("TELEGRAM_ADMIN_BOT_TOKEN", "999:admin-token");
+    const spy = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      const refused = String(url).includes("999:admin-token") && String(url).endsWith("/sendMessage");
+      return new Response(
+        JSON.stringify(refused ? { ok: false, description: "Forbidden: bot can't initiate conversation with a user" } : { ok: true }),
+        { headers: { "Content-Type": "application/json" } }
+      );
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await notifyNewReport(REPORT);
+
+    const sends = spy.mock.calls.map((c) => String(c[0])).filter((u) => u.endsWith("/sendMessage"));
+    expect(sends).toHaveLength(2);
+    expect(sends[1]).toContain(TOKEN);
+  });
+
+  it("still sends the notice when its button cannot be stored", async () => {
+    vi.stubEnv("TELEGRAM_ADMIN_BOT_TOKEN", "999:admin-token");
+    const spy = okFetch();
+    await notifyBriefChanged({
+      locationId: "comisaria-malaga",
+      userId: "00000000-0000-4000-8000-000000000002",
+      locationName: "Comisaría de Málaga",
+      detail: "З 25.09 Резерв+ більше не просять",
+      author: "Olena",
+    });
+
+    const send = sent(spy).find((c) => c.method === "sendMessage");
+    expect(send?.params.text).toContain("Резерв+ більше не просять");
+    expect(send?.params.reply_markup).toBeUndefined();
   });
 
   it("sends a suggestion as before → after", async () => {
@@ -164,11 +216,11 @@ describe("moderator notifications", () => {
    */
   it("falls back to app_settings when the env var is unset", async () => {
     vi.stubEnv("TELEGRAM_ADMIN_CHAT_ID", "");
-    settingsRow.mockResolvedValue({ data: { value: "999" }, error: null });
+    onlyModeratorChat("999");
     const spy = okFetch();
 
     await notifyNewReport(REPORT);
-    expect(sent(spy)[0].params.chat_id).toBe("999");
+    expect(sent(spy).find((c) => c.method === "sendMessage")?.params.chat_id).toBe("999");
   });
 
   it("prefers the env var, so a deployment can still configure it directly", async () => {

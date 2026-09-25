@@ -71,7 +71,7 @@ export async function POST(request: Request) {
   // After the report is safely stored, never before: this is a courtesy to
   // whoever moderates, and it awaits only so the serverless function is not
   // torn down mid-request. notifyNewReport swallows its own failures.
-  await notifyNewReport(await describeReport(supabase, input));
+  await notifyNewReport({ reportId: data as string, ...(await describeReport(supabase, input)) });
 
   return NextResponse.json({ ok: true, reportId: data });
 }

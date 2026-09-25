@@ -1,41 +1,11 @@
 import { callTelegram } from "@/lib/telegram/api";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { config } from "@/lib/config";
 import messages from "../../../messages/uk.json";
 
-const MODERATOR_CHAT_SETTING = "moderator_chat_id";
+import { getAdminBotToken, getModeratorChatId, getUpdatesChannel } from "@/lib/telegram/settings";
+import { createActionButton, ensureAdminWebhook, type NoticeAction } from "@/lib/telegram/adminBot";
 
-/**
- * Which chat hears about submissions.
- *
- * TELEGRAM_ADMIN_CHAT_ID wins when set, so a self-hosted deployment can
- * configure this the ordinary way. Otherwise it comes from app_settings
- * (0014), which is there because the env var route means "open the hosting
- * dashboard, add a variable, redeploy" — three steps, all silent if skipped,
- * and skipping them is exactly what made notifications look broken.
- *
- * Null means nobody is configured, and nothing is sent.
- */
-export async function getModeratorChatId(): Promise<string | null> {
-  const fromEnv = process.env.TELEGRAM_ADMIN_CHAT_ID?.trim();
-  if (fromEnv) return fromEnv;
-
-  try {
-    const { data, error } = await createAdminClient()
-      .from("app_settings")
-      .select("value")
-      .eq("key", MODERATOR_CHAT_SETTING)
-      .maybeSingle();
-    if (error) {
-      console.error("could not read the moderator chat setting:", error.message);
-      return null;
-    }
-    return data?.value?.trim() || null;
-  } catch (err) {
-    console.error("could not read the moderator chat setting:", err);
-    return null;
-  }
-}
+export { getModeratorChatId };
 
 /**
  * Tells the moderator chat that something arrived that needs a human.
@@ -54,20 +24,41 @@ export async function getModeratorChatId(): Promise<string | null> {
  * Silent when TELEGRAM_ADMIN_CHAT_ID is unset, which is also how you turn it
  * off.
  */
-async function notify(text: string): Promise<void> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
+async function notify(text: string, action?: NoticeAction): Promise<void> {
+  // The separate admin bot when configured; the login bot otherwise, which is
+  // how every notice was sent before the admin bot existed.
+  const adminToken = await getAdminBotToken();
+  const token = adminToken ?? process.env.TELEGRAM_BOT_TOKEN;
   if (!token) return;
 
   const chatId = await getModeratorChatId();
   if (!chatId) return;
 
   try {
+    if (adminToken) await ensureAdminWebhook(adminToken);
+    // Buttons only through the admin bot: its webhook is what answers them.
+    const replyMarkup = action && adminToken ? await createActionButton(action) : undefined;
     const res = await callTelegram(token, "sendMessage", {
       chat_id: chatId,
       text,
       link_preview_options: { is_disabled: true },
+      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
     });
-    if (!res.ok) console.error("moderator notification failed:", res.description);
+    if (res.ok) return;
+    console.error("moderator notification failed:", res.description);
+
+    // A bot may not write to someone who has never pressed Start in it, so a
+    // freshly configured admin bot fails until the owner opens it. Rather than
+    // lose the notice, send it the old way.
+    const loginToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (adminToken && loginToken && loginToken !== adminToken) {
+      const fallback = await callTelegram(loginToken, "sendMessage", {
+        chat_id: chatId,
+        text,
+        link_preview_options: { is_disabled: true },
+      });
+      if (!fallback.ok) console.error("moderator notification fallback failed:", fallback.description);
+    }
   } catch (err) {
     console.error("moderator notification threw:", err);
   }
@@ -78,6 +69,7 @@ function locationUrl(locationId: string): string {
 }
 
 export interface NewReportNotice {
+  reportId: string;
   locationId: string;
   locationName: string;
   /** Already-translated outcome label; the caller has the translator. */
@@ -93,7 +85,15 @@ export async function notifyNewReport(notice: NewReportNotice): Promise<void> {
       .replace("{outcome}", notice.outcome)
       .replace("{date}", notice.eventDate)
       .replace("{author}", notice.author)
-      .replace("{url}", locationUrl(notice.locationId))
+      .replace("{url}", locationUrl(notice.locationId)),
+    // Offered only when there is a channel to publish to.
+    (await getUpdatesChannel())
+      ? {
+          kind: "publish_report",
+          payload: { report_id: notice.reportId },
+          label: messages.telegramBot.publishButton,
+        }
+      : undefined
   );
 }
 
@@ -139,6 +139,7 @@ export async function notifyNewLocation(notice: NewLocationNotice): Promise<void
 
 export interface BriefChangedNotice {
   locationId: string;
+  userId: string;
   locationName: string;
   detail: string;
   author: string;
@@ -151,7 +152,12 @@ export async function notifyBriefChanged(notice: BriefChangedNotice): Promise<vo
       .replace("{location}", notice.locationName)
       .replace("{detail}", notice.detail)
       .replace("{author}", notice.author)
-      .replace("{url}", locationUrl(notice.locationId))
+      .replace("{url}", locationUrl(notice.locationId)),
+    {
+      kind: "accept_change",
+      payload: { location_id: notice.locationId, user_id: notice.userId, detail: notice.detail },
+      label: (await getUpdatesChannel()) ? messages.telegramBot.acceptChangeButton : messages.telegramBot.acceptChangeSiteOnlyButton,
+    }
   );
 }
 
