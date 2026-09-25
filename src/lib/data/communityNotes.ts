@@ -25,7 +25,7 @@ export async function getCommunityBrief(
   locationId: string,
   userId: string | null
 ): Promise<CommunityBrief | null> {
-  const [notesResult, confirmationsResult] = await Promise.all([
+  const [notesResult, confirmationsResult, channelResult] = await Promise.all([
     supabase
       .from("community_notes")
       .select("kind, body, observed_on")
@@ -33,6 +33,8 @@ export async function getCommunityBrief(
       .eq("moderation_status", "published")
       .order("position", { ascending: true }),
     supabase.from("location_brief_confirmations").select("user_id, stance").eq("location_id", locationId),
+    // "✅ Актуально" taps under this office's posts in the Telegram channel.
+    supabase.rpc("channel_confirmations", { p_location_id: locationId }),
   ]);
   if (notesResult.error) throw notesResult.error;
   if (confirmationsResult.error) throw confirmationsResult.error;
@@ -46,7 +48,9 @@ export async function getCommunityBrief(
     documents: notes.filter((n) => n.kind === "document").map((n) => n.body),
     info: notes.filter((n) => n.kind === "info").map((n) => n.body),
     observed_on: notes.map((n) => n.observed_on).sort().at(-1)!,
-    still_true: confirmations.filter((c) => c.stance === "still_true").length,
+    still_true:
+      confirmations.filter((c) => c.stance === "still_true").length +
+      (channelResult.error ? 0 : Number(channelResult.data) || 0),
     changed: confirmations.filter((c) => c.stance === "changed").length,
     my_stance: confirmations.find((c) => c.user_id === userId)?.stance ?? null,
   };

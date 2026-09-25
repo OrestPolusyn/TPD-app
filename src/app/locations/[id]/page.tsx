@@ -6,6 +6,9 @@ import { getLocationById } from "@/lib/data/locations";
 import { getFlaggedReportsForLocation, getReportDetails, getCommentsForReports } from "@/lib/data/reports";
 import { getActiveDocumentTypes } from "@/lib/data/documentTypes";
 import { getCommunityBrief } from "@/lib/data/communityNotes";
+import { getRuleChanges } from "@/lib/data/ruleChanges";
+import { RecentRuleChanges } from "@/components/location/RecentRuleChanges";
+import { madridDate } from "@/lib/stats";
 import { OfficialBlock } from "@/components/location/OfficialBlock";
 import { LocationSummary } from "@/components/location/LocationSummary";
 import { CommunityBlock } from "@/components/location/CommunityBlock";
@@ -74,11 +77,12 @@ export default async function LocationPage({ params, searchParams }: LocationPag
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [reportDetails, flaggedReports, documentTypes, brief] = await Promise.all([
+  const [reportDetails, flaggedReports, documentTypes, brief, ruleChanges] = await Promise.all([
     getReportDetails(supabase, allReportIds),
     getFlaggedReportsForLocation(supabase, location.id, PROCEDURE_CODE),
     getActiveDocumentTypes(supabase),
     getCommunityBrief(supabase, location.id, user?.id ?? null),
+    getRuleChanges(supabase, { locationId: location.id, limit: 3 }),
   ]);
 
   const comments = await getCommentsForReports(supabase, [
@@ -103,6 +107,7 @@ export default async function LocationPage({ params, searchParams }: LocationPag
           {location.city}, {location.province}
         </p>
       </div>
+      <RecentRuleChanges changes={ruleChanges} today={madridDate(new Date())} />
       <LocationSummary reports={[...reportDetails.values()]} documentLabels={documentLabels} />
       <ShareActions
         webUrl={webUrl}

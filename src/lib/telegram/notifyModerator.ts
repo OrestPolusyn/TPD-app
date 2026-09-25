@@ -3,7 +3,7 @@ import { config } from "@/lib/config";
 import messages from "../../../messages/uk.json";
 
 import { getAdminBotToken, getModeratorChatId, getUpdatesChannel } from "@/lib/telegram/settings";
-import { createActionButton, ensureAdminWebhook, type NoticeAction } from "@/lib/telegram/adminBot";
+import { createActionButtons, ensureAdminWebhook, type ActionButton, type NoticeAction } from "@/lib/telegram/adminBot";
 
 export { getModeratorChatId };
 
@@ -24,7 +24,7 @@ export { getModeratorChatId };
  * Silent when TELEGRAM_ADMIN_CHAT_ID is unset, which is also how you turn it
  * off.
  */
-async function notify(text: string, action?: NoticeAction): Promise<void> {
+async function notify(text: string, action?: { action: NoticeAction; buttons: ActionButton[] }): Promise<void> {
   // The separate admin bot when configured; the login bot otherwise, which is
   // how every notice was sent before the admin bot existed.
   const adminToken = await getAdminBotToken();
@@ -37,7 +37,7 @@ async function notify(text: string, action?: NoticeAction): Promise<void> {
   try {
     if (adminToken) await ensureAdminWebhook(adminToken);
     // Buttons only through the admin bot: its webhook is what answers them.
-    const replyMarkup = action && adminToken ? await createActionButton(action) : undefined;
+    const replyMarkup = action && adminToken ? await createActionButtons(action.action, action.buttons) : undefined;
     const res = await callTelegram(token, "sendMessage", {
       chat_id: chatId,
       text,
@@ -89,9 +89,8 @@ export async function notifyNewReport(notice: NewReportNotice): Promise<void> {
     // Offered only when there is a channel to publish to.
     (await getUpdatesChannel())
       ? {
-          kind: "publish_report",
-          payload: { report_id: notice.reportId },
-          label: messages.telegramBot.publishButton,
+          action: { kind: "publish_report", payload: { report_id: notice.reportId } },
+          buttons: [{ label: messages.telegramBot.publishButton }],
         }
       : undefined
   );
@@ -153,11 +152,45 @@ export async function notifyBriefChanged(notice: BriefChangedNotice): Promise<vo
       .replace("{detail}", notice.detail)
       .replace("{author}", notice.author)
       .replace("{url}", locationUrl(notice.locationId)),
-    {
-      kind: "accept_change",
-      payload: { location_id: notice.locationId, user_id: notice.userId, detail: notice.detail },
-      label: (await getUpdatesChannel()) ? messages.telegramBot.acceptChangeButton : messages.telegramBot.acceptChangeSiteOnlyButton,
-    }
+    await changeButtons({ location_id: notice.locationId, user_id: notice.userId, detail: notice.detail, source: "site" })
+  );
+}
+
+/** "Add", "add as a rule change", "reject" — the three answers to a reported change. */
+async function changeButtons(payload: { location_id: string; detail: string; user_id?: string; source: string }) {
+  const t = messages.telegramBot;
+  const channel = await getUpdatesChannel();
+  return {
+    action: { kind: "accept_change" as const, payload },
+    buttons: [
+      { label: channel ? t.acceptChangeButton : t.acceptChangeSiteOnlyButton, variant: "a" as const },
+      { label: t.acceptRuleButton, variant: "r" as const },
+      { label: t.rejectButton, variant: "x" as const },
+    ],
+  };
+}
+
+export interface TelegramChangeNotice {
+  /** Null when the suggestion is about something with no office, e.g. the guide. */
+  locationId: string | null;
+  locationName: string;
+  detail: string;
+  fromName: string;
+  fromUsername: string | null;
+}
+
+/** Someone tapped "✏️ Змінилось" under a channel post and said what changed. */
+export async function notifyTelegramChange(notice: TelegramChangeNotice): Promise<void> {
+  const text = messages.telegramBot.telegramChangeNotice
+    .replace("{location}", notice.locationName)
+    .replace("{detail}", notice.detail)
+    .replace("{author}", notice.fromName + (notice.fromUsername ? ` (@${notice.fromUsername})` : ""))
+    .replace("{url}", notice.locationId ? locationUrl(notice.locationId) : config.siteUrl());
+  await notify(
+    text,
+    notice.locationId
+      ? await changeButtons({ location_id: notice.locationId, detail: notice.detail, source: "telegram" })
+      : undefined
   );
 }
 

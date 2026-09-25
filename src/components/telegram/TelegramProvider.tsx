@@ -7,7 +7,8 @@ import type { TelegramWebApp } from "@/types/telegram-web-app";
 
 const START_PARAM_REGEX = /^[A-Za-z0-9_-]{1,64}$/;
 
-/** startapp=loc_<id> -> /locations/<id>; startapp=search_<slug> -> /results?province=<slug>.
+/** startapp=loc_<id> -> /locations/<id>; report_<id> -> /reports/new?location=<id>;
+ * search_<slug> -> /results?province=<slug>.
  * Anything else (including a param that fails the regex) resolves to null,
  * meaning "ignore it, stay on /", per docs/SPEC.md. */
 export function resolveDeepLink(startParam: string | undefined): string | null {
@@ -15,6 +16,11 @@ export function resolveDeepLink(startParam: string | undefined): string | null {
   if (startParam.startsWith("loc_")) {
     const id = startParam.slice("loc_".length);
     return id ? `/locations/${id}` : null;
+  }
+  // "➕ Мій досвід" under a channel post: the report form for that office.
+  if (startParam.startsWith("report_")) {
+    const id = startParam.slice("report_".length);
+    return id ? `/reports/new?location=${encodeURIComponent(id)}` : null;
   }
   if (startParam.startsWith("search_")) {
     const slug = startParam.slice("search_".length);

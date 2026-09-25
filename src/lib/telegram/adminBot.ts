@@ -1,6 +1,7 @@
 import { callTelegram, getWebhookInfo } from "@/lib/telegram/api";
 import { deriveWebhookSecret } from "@/lib/telegram/webhookSecret";
 import { getUpdatesChannel } from "@/lib/telegram/settings";
+import { publishChannelPost, locationUrl } from "@/lib/telegram/channel";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { madridDate } from "@/lib/stats";
 import { formatDate } from "@/lib/format";
@@ -41,15 +42,24 @@ export async function ensureAdminWebhook(token: string): Promise<{ ok: boolean; 
 }
 
 export type NoticeAction =
-  | { kind: "publish_report"; payload: { report_id: string }; label: string }
-  | { kind: "accept_change"; payload: { location_id: string; user_id: string; detail: string }; label: string };
+  | { kind: "publish_report"; payload: { report_id: string } }
+  | { kind: "accept_change"; payload: { location_id: string; detail: string; user_id?: string; source?: string } };
+
+/** One button under an admin notice; `variant` picks what the action does. */
+export interface ActionButton {
+  label: string;
+  variant?: "a" | "r" | "x";
+}
 
 /**
- * Stores the action and returns the one-button keyboard that triggers it.
- * Never throws: a notice without its button is still worth sending, a
- * notice lost because the button could not be stored is not.
+ * Stores the action and returns the keyboard that triggers it — one action
+ * row, several buttons (`act:<id>:<variant>`), so "add", "add as a rule
+ * change" and "reject" share one one-shot claim.
+ *
+ * Never throws: a notice without its buttons is still worth sending, a
+ * notice lost because the buttons could not be stored is not.
  */
-export async function createActionButton(action: NoticeAction) {
+export async function createActionButtons(action: NoticeAction, buttons: ActionButton[]) {
   try {
     const { data, error } = await createAdminClient()
       .from("bot_actions")
@@ -60,7 +70,11 @@ export async function createActionButton(action: NoticeAction) {
       console.error("could not store bot action:", error?.message);
       return undefined;
     }
-    return { inline_keyboard: [[{ text: action.label, callback_data: `act:${data.id}` }]] };
+    return {
+      inline_keyboard: buttons.map((b) => [
+        { text: b.label, callback_data: b.variant ? `act:${data.id}:${b.variant}` : `act:${data.id}` },
+      ]),
+    };
   } catch (err) {
     console.error("could not store bot action:", err);
     return undefined;
@@ -81,10 +95,6 @@ export function cityHashtag(city: string): string {
 
 function clip(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
-}
-
-function locationUrl(id: string): string {
-  return `${config.siteUrl().replace(/\/$/, "")}/locations/${id}`;
 }
 
 interface ReportForPost {
@@ -123,15 +133,17 @@ export function formatChangePost(location: { id: string; city: string; name: str
   ].join("\n");
 }
 
-async function publish(token: string, text: string): Promise<{ ok: boolean; error?: string }> {
-  const channel = await getUpdatesChannel();
-  if (!channel) return { ok: false, error: "no_channel" };
-  const res = await callTelegram(token, "sendMessage", {
-    chat_id: channel,
-    text,
-    link_preview_options: { is_disabled: true },
-  });
-  return { ok: res.ok, error: res.description };
+export function formatRulePost(location: { id: string; city: string; name: string }, date: string, detail: string): string {
+  const t = messages.telegramBot;
+  return [
+    `⚠️ ${t.postRuleChange} · ${location.city}`,
+    location.name,
+    "",
+    `${formatDate(date)}: ${clip(detail.trim(), 600)}`,
+    "",
+    `${t.postCurrent}: ${locationUrl(location.id)}`,
+    `#${t.postRuleTag} ${cityHashtag(location.city)}`,
+  ].join("\n");
 }
 
 /**
@@ -139,9 +151,14 @@ async function publish(token: string, text: string): Promise<{ ok: boolean; erro
  * shows the owner as the tap's answer.
  *
  * One-shot: `done_at` is claimed with a conditional update before anything
- * is posted, so two taps (or a retried webhook) cannot publish twice.
+ * is posted, so two taps (or a retried webhook) cannot publish twice. A
+ * failure releases the claim so the owner can simply tap again.
+ *
+ * Variants of accept_change: "a" adds the change to the office card and
+ * posts it; "r" does the same and also records it on the rule-changes
+ * timeline, posted as "⚠️ Зміна правил"; "x" rejects it.
  */
-export async function performAction(token: string, actionId: number): Promise<{ text: string; done: boolean }> {
+export async function performAction(actionId: number, variant: string | undefined): Promise<{ text: string; done: boolean }> {
   const t = messages.telegramBot;
   const admin = createAdminClient();
 
@@ -155,44 +172,58 @@ export async function performAction(token: string, actionId: number): Promise<{ 
   if (error) return { text: t.actionFailed, done: false };
   if (!claimed) return { text: t.actionAlready, done: true };
 
-  const release = () => admin.from("bot_actions").update({ done_at: null }).eq("id", actionId);
+  const release = async (text: string) => {
+    await admin.from("bot_actions").update({ done_at: null }).eq("id", actionId);
+    return { text, done: false };
+  };
 
   if (claimed.kind === "publish_report") {
     const reportId = (claimed.payload as { report_id: string }).report_id;
     const post = await loadReportPost(admin, reportId);
-    if (!post) {
-      await release();
-      return { text: t.actionMissing, done: false };
-    }
-    const res = await publish(token, formatReportPost(post));
-    if (!res.ok) {
-      await release();
-      return { text: `${t.actionFailed} ${res.error ?? ""}`.trim(), done: false };
-    }
+    if (!post) return release(t.actionMissing);
+    const res = await publishChannelPost({ kind: "report", locationId: post.location.id, text: formatReportPost(post) });
+    if (!res.ok) return release(`${t.actionFailed} ${res.error ?? ""}`.trim());
     return { text: t.actionPublished, done: true };
   }
 
-  // accept_change: the owner vouches for the reported change — it becomes a
-  // bullet on the office's card, dated today, and goes to the channel.
+  if (variant === "x") return { text: t.actionRejected, done: true };
+
   const { location_id, detail } = claimed.payload as { location_id: string; detail: string };
   const { data: location } = await admin.from("locations").select("id, name, city").eq("id", location_id).maybeSingle();
-  if (!location) {
-    await release();
-    return { text: t.actionMissing, done: false };
-  }
+  if (!location) return release(t.actionMissing);
+
+  const today = madridDate(new Date());
   const { error: noteError } = await admin.from("community_notes").insert({
     location_id,
     kind: "info",
     position: 0,
     body: clip(detail.trim(), 600),
-    observed_on: madridDate(new Date()),
+    observed_on: today,
   });
-  if (noteError) {
-    await release();
-    return { text: t.actionFailed, done: false };
+  if (noteError) return release(t.actionFailed);
+
+  const asRule = variant === "r";
+  if (asRule) {
+    const { error: ruleError } = await admin
+      .from("rule_changes")
+      .insert({ location_id, effective_date: today, title: clip(detail.trim(), 300) });
+    if (ruleError) console.error("rule change not recorded:", ruleError.message);
   }
-  const res = await publish(token, formatChangePost(location, detail));
-  return { text: res.ok ? t.actionAcceptedPublished : t.actionAcceptedSiteOnly, done: true };
+
+  const res = await publishChannelPost({
+    kind: asRule ? "rule" : "change",
+    locationId: location_id,
+    text: asRule ? formatRulePost(location, today, detail) : formatChangePost(location, detail),
+  });
+  const channelSet = Boolean(await getUpdatesChannel());
+  const text = res.ok
+    ? asRule
+      ? t.actionRulePublished
+      : t.actionAcceptedPublished
+    : channelSet
+      ? `${t.actionAcceptedSiteOnly} (${res.error ?? "?"})`
+      : t.actionAcceptedSiteOnly;
+  return { text, done: true };
 }
 
 async function loadReportPost(admin: ReturnType<typeof createAdminClient>, reportId: string): Promise<ReportForPost | null> {

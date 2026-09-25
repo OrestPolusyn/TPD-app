@@ -11,6 +11,8 @@ export async function NavBar() {
   const t = await getTranslations("nav");
   const links = [
     { href: "/locations", label: t("locations") },
+    { href: "/changes", label: t("changes") },
+    { href: "/guide/dovidka", label: t("guide") },
     { href: "/faq", label: t("faq") },
     { href: "/me", label: t("me") },
   ];

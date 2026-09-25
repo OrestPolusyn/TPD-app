@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://tp.example");
-const { cityHashtag, formatChangePost, formatReportPost } = await import("./adminBot");
+const { cityHashtag, formatChangePost, formatReportPost, formatRulePost } = await import("./adminBot");
 
 const LOCATION = { id: "comisaria-alicante", name: "Comisaría Policía Nacional — Alicante", city: "Alicante" };
 
@@ -42,6 +42,13 @@ describe("channel posts", () => {
     expect(post).toContain("Alicante — оновлення");
     expect(post).toContain("З 25.09 Резерв+ більше не просять");
     expect(post).toContain("https://tp.example/locations/comisaria-alicante");
+  });
+
+  it("marks a rule change with ⚠️, its date and the #зміни tag", () => {
+    const post = formatRulePost(LOCATION, "2026-09-25", "Запис лише через сайт");
+    expect(post.startsWith("⚠️ Зміна правил · Alicante")).toBe(true);
+    expect(post).toContain("25 вересня 2026 р.: Запис лише через сайт");
+    expect(post).toContain("#зміни #Alicante");
   });
 
   it("makes hashtags out of multi-word city names", () => {

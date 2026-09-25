@@ -3,6 +3,8 @@ import { callTelegram } from "@/lib/telegram/api";
 import { deriveWebhookSecret } from "@/lib/telegram/webhookSecret";
 import { getAdminBotToken, getModeratorChatId } from "@/lib/telegram/settings";
 import { performAction } from "@/lib/telegram/adminBot";
+import { publishChannelPost } from "@/lib/telegram/channel";
+import { guidePostText } from "@/lib/guide";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSiteStats, formatStatsMessage } from "@/lib/stats";
 import { config } from "@/lib/config";
@@ -64,6 +66,22 @@ async function handleMessage(token: string, owner: string | null, message: NonNu
     return;
   }
 
+  // /post_guide: the ДПСУ-certificate guide as a channel post, with the same
+  // buttons as any other — worth pinning in the channel.
+  if (command === "/post_guide" && owner === String(chatId)) {
+    const res = await publishChannelPost({
+      kind: "guide",
+      locationId: null,
+      text: guidePostText(),
+      detailUrl: `${config.siteUrl().replace(/\/$/, "")}/guide/dovidka`,
+    });
+    await callTelegram(token, "sendMessage", {
+      chat_id: chatId,
+      text: res.ok ? messages.telegramBot.guidePosted : `${messages.telegramBot.actionFailed} ${res.error ?? ""}`,
+    });
+    return;
+  }
+
   if (command === "/stats" && owner === String(chatId)) {
     const stats = await getSiteStats(createAdminClient());
     await callTelegram(token, "sendMessage", {
@@ -79,13 +97,14 @@ async function handleButton(
   owner: string | null,
   query: NonNullable<AdminUpdate["callback_query"]>
 ) {
-  const actionId = Number(/^act:(\d+)$/.exec(query.data ?? "")?.[1]);
+  const match = /^act:(\d+)(?::([arx]))?$/.exec(query.data ?? "");
+  const actionId = Number(match?.[1]);
   if (!actionId || owner !== String(query.from.id)) {
     await callTelegram(token, "answerCallbackQuery", { callback_query_id: query.id });
     return;
   }
 
-  const result = await performAction(token, actionId);
+  const result = await performAction(actionId, match?.[2]);
   await callTelegram(token, "answerCallbackQuery", { callback_query_id: query.id, text: result.text });
 
   // Replace the button with a plain "done" marker so the message itself

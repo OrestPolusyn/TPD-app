@@ -6,6 +6,11 @@ describe("resolveDeepLink", () => {
     expect(resolveDeepLink("loc_comisaria-lugo")).toBe("/locations/comisaria-lugo");
   });
 
+  it("resolves a report_ startapp param to that office's report form", () => {
+    expect(resolveDeepLink("report_comisaria-alicante")).toBe("/reports/new?location=comisaria-alicante");
+    expect(resolveDeepLink("report_")).toBeNull();
+  });
+
   it("resolves a search_ startapp param to /results?province=<slug>", () => {
     expect(resolveDeepLink("search_madrid")).toBe("/results?province=madrid");
   });

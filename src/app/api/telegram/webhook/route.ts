@@ -6,6 +6,8 @@ import { config } from "@/lib/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getModeratorChatId } from "@/lib/telegram/notifyModerator";
 import { getSiteStats, formatStatsMessage } from "@/lib/stats";
+import { CHANGE_START_PREFIX, VOTE_PREFIX, toggleChannelVote } from "@/lib/telegram/channel";
+import { notifyTelegramChange } from "@/lib/telegram/notifyModerator";
 import messages from "../../../../../messages/uk.json";
 
 export const dynamic = "force-dynamic";
@@ -94,7 +96,13 @@ type BotMessages = typeof messages.telegramBot;
 async function handleMessage(token: string, update: TelegramUpdate) {
   const chatId = update.message?.chat.id;
   const text = update.message?.text?.trim() ?? "";
-  if (!chatId || !text.startsWith("/")) return;
+  if (!chatId) return;
+
+  // Not a command: possibly the answer to "what changed?".
+  if (!text.startsWith("/")) {
+    if (text && update.message?.from) await answerChangeQuestion(token, chatId, update.message.from, text);
+    return;
+  }
 
   const [rawCommand, ...args] = text.split(/\s+/);
   const command = rawCommand.split("@")[0];
@@ -134,6 +142,11 @@ async function handleMessage(token: string, update: TelegramUpdate) {
   const t = messages.telegramBot;
   const siteUrl = config.siteUrl().replace(/\/$/, "");
   const payload = command === "/start" ? (args[0] ?? "") : "";
+
+  if (payload.startsWith(CHANGE_START_PREFIX) && update.message?.from) {
+    await askWhatChanged(token, chatId, update.message.from.id, payload.slice(CHANGE_START_PREFIX.length));
+    return;
+  }
 
   if (!payload.startsWith(LOGIN_START_PREFIX)) {
     await send(token, "sendMessage", welcomeReply(chatId, siteUrl, t));
@@ -194,6 +207,10 @@ async function ensureLoginUpdatesDelivered(token: string) {
 async function handleCallback(token: string, query: NonNullable<TelegramUpdate["callback_query"]>) {
   const t = messages.telegramBot;
   const data = query.data ?? "";
+  if (data.startsWith(VOTE_PREFIX)) {
+    await toggleChannelVote(token, query);
+    return;
+  }
   if (!data.startsWith(LOGIN_CALLBACK_PREFIX)) {
     await send(token, "answerCallbackQuery", { callback_query_id: query.id });
     return;
@@ -249,4 +266,65 @@ async function loginConfirmReply(chatId: number, requestId: string, t: BotMessag
 async function send(token: string, method: string, body: Record<string, unknown>) {
   const res = await callTelegram(token, method, body);
   if (!res.ok) console.error(`${method} failed:`, res.description);
+}
+
+/** How long "what changed?" waits for its answer. */
+const CHANGE_QUESTION_TTL_MS = 30 * 60 * 1000;
+
+/**
+ * "✏️ Змінилось" under a channel post opens the bot with /start chg_<postId>
+ * (or chg_guide). The bot asks what changed and remembers that it asked, so
+ * the person's next plain message is taken as the answer.
+ */
+async function askWhatChanged(token: string, chatId: number, userId: number, ref: string) {
+  const t = messages.telegramBot;
+  const admin = createAdminClient();
+
+  let locationId: string | null = null;
+  let subject = t.guideSubject;
+  if (ref !== "guide") {
+    const { data: post } = await admin.from("channel_posts").select("location_id").eq("id", Number(ref) || 0).maybeSingle();
+    locationId = (post?.location_id as string | null) ?? null;
+    if (!locationId) {
+      await send(token, "sendMessage", { chat_id: chatId, text: t.changeUnknownPost });
+      return;
+    }
+    const { data: location } = await admin.from("locations").select("city, name").eq("id", locationId).maybeSingle();
+    subject = location ? `${location.city} — ${location.name}` : locationId;
+  }
+
+  await admin.from("bot_conversations").upsert({
+    tg_user_id: userId,
+    kind: "change",
+    ref: { location_id: locationId, subject },
+    expires_at: new Date(Date.now() + CHANGE_QUESTION_TTL_MS).toISOString(),
+  });
+  await send(token, "sendMessage", { chat_id: chatId, text: t.changeQuestion.replace("{subject}", subject) });
+}
+
+async function answerChangeQuestion(token: string, chatId: number, from: TelegramFrom, text: string) {
+  const t = messages.telegramBot;
+  const admin = createAdminClient();
+  const { data: pending } = await admin
+    .from("bot_conversations")
+    .select("ref, expires_at")
+    .eq("tg_user_id", from.id)
+    .eq("kind", "change")
+    .maybeSingle();
+  if (!pending) return;
+  await admin.from("bot_conversations").delete().eq("tg_user_id", from.id);
+  if (new Date(pending.expires_at as string).getTime() < Date.now()) {
+    await send(token, "sendMessage", { chat_id: chatId, text: t.changeExpired });
+    return;
+  }
+
+  const ref = pending.ref as { location_id: string | null; subject: string };
+  await notifyTelegramChange({
+    locationId: ref.location_id,
+    locationName: ref.subject,
+    detail: text.slice(0, 1000),
+    fromName: from.first_name?.trim() || t.anonymousName,
+    fromUsername: from.username ?? null,
+  });
+  await send(token, "sendMessage", { chat_id: chatId, text: t.changeThanks });
 }
