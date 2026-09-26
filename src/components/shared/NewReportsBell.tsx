@@ -22,6 +22,9 @@ export function markFeedSeen(): void {
   }
 }
 
+/** How far back a first-time visitor's bell looks. */
+const FIRST_VISIT_WINDOW_MS = 7 * 86_400_000;
+
 /**
  * "Anything new?" in the header.
  *
@@ -29,8 +32,13 @@ export function markFeedSeen(): void {
  * needs no account, no table and no notification permission — it works signed
  * out, which is how most people read this site.
  *
- * A first visit stores the mark and shows nothing: arriving to a badge of 40
- * reports that are all news to you is not news.
+ * Counts everything /feed shows as new — reports, rule changes and offices
+ * whose card changed — not just reports: most news here is "Madrid now wants
+ * only the stamp", which is a card update, not somebody's report.
+ *
+ * A first visit counts the last week, without storing a mark: a newcomer
+ * should see that the site is alive, and the mark is set when they actually
+ * open /feed.
  */
 export function NewReportsBell({ label }: { label: string }) {
   const [count, setCount] = useState(0);
@@ -38,13 +46,9 @@ export function NewReportsBell({ label }: { label: string }) {
   useEffect(() => {
     // On a timer so the fetch does not cascade a render from the effect body.
     const timer = setTimeout(async () => {
-      const since = readFeedSeen();
-      if (!since) {
-        markFeedSeen();
-        return;
-      }
+      const since = readFeedSeen() ?? new Date(Date.now() - FIRST_VISIT_WINDOW_MS).toISOString();
       try {
-        const res = await fetch(`/api/reports/new-count?since=${encodeURIComponent(since)}`);
+        const res = await fetch(`/api/feed/new-count?since=${encodeURIComponent(since)}`);
         if (!res.ok) return;
         const body = (await res.json()) as { count?: number };
         setCount(typeof body.count === "number" ? body.count : 0);

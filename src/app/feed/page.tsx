@@ -5,6 +5,7 @@ import { getRecentReports } from "@/lib/data/reports";
 import { getRecentOfficeUpdates } from "@/lib/data/communityNotes";
 import { getRuleChanges } from "@/lib/data/ruleChanges";
 import { madridDate } from "@/lib/stats";
+import { FEED_OFFICE_UPDATES, FEED_RULE_CHANGES } from "@/lib/data/feedCount";
 import { OutcomeLabel } from "@/components/shared/OutcomeLabel";
 import { Avatar } from "@/components/shared/Avatar";
 import { MarkFeedSeen } from "@/components/shared/MarkFeedSeen";
@@ -25,8 +26,8 @@ export default async function FeedPage() {
   const supabase = await createClient();
   const [reports, updates, ruleChanges] = await Promise.all([
     getRecentReports(supabase),
-    getRecentOfficeUpdates(supabase),
-    getRuleChanges(supabase, { limit: 5 }),
+    getRecentOfficeUpdates(supabase, 14, FEED_OFFICE_UPDATES),
+    getRuleChanges(supabase, { limit: FEED_RULE_CHANGES }),
   ]);
   const today = madridDate(new Date());
 
