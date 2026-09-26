@@ -505,7 +505,7 @@ export async function dispatchDrafts(opts: { resend?: boolean } = {}): Promise<{
  * post format changes (Ukrainian city names) and old posts should match.
  * Only posts that remember their source (action_id, or the guide).
  */
-export async function refreshChannelPosts(): Promise<{ updated: number; skipped: number }> {
+export async function refreshChannelPosts(): Promise<{ updated: number; skipped: number; errors: string[] }> {
   const admin = createAdminClient();
   const { data: posts } = await admin
     .from("channel_posts")
@@ -515,6 +515,7 @@ export async function refreshChannelPosts(): Promise<{ updated: number; skipped:
 
   let updated = 0;
   let skipped = 0;
+  const errors: string[] = [];
   for (const post of posts ?? []) {
     let text: string | null = null;
     let detailUrl: string | undefined;
@@ -542,14 +543,16 @@ export async function refreshChannelPosts(): Promise<{ updated: number; skipped:
     }
     if (!text) {
       skipped++;
+      errors.push(`#${post.id}: nothing to draw it from`);
       continue;
     }
     const res = await updateChannelPost(post.id as number, text, detailUrl);
     if (res.ok) updated++;
     else {
       skipped++;
+      errors.push(`#${post.id}: ${res.error ?? "?"}`);
       console.error(`channel post ${post.id} not refreshed:`, res.error);
     }
   }
-  return { updated, skipped };
+  return { updated, skipped, errors };
 }
