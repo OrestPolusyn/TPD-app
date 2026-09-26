@@ -85,6 +85,11 @@ export interface ChangePayload {
   kind?: "document" | "info";
   retire_note_ids?: string[];
   also_location_ids?: string[];
+  /**
+   * Already on the site; only (re)publish the post — e.g. a post that was
+   * deleted from the channel and should go out again in the new format.
+   */
+  channel_only?: boolean;
 }
 
 /** One button under an admin notice; `variant` picks what the action does. */
@@ -312,6 +317,39 @@ export async function performAction(actionId: number, variant: string | undefine
   if (offices[0]?.id !== location_id) return release(t.actionMissing);
 
   const today = madridDate(new Date());
+  const asRule = variant === "r";
+  if (!change.channel_only) {
+    const failed = await applyChangeToSite(admin, change, today, asRule);
+    if (failed) return release(t.actionFailed);
+  }
+
+  const res = await publishChannelPost({
+    kind: asRule ? "rule" : "change",
+    locationId: location_id,
+    text: asRule ? formatRulePost(offices, today, detail) : formatChangePost(offices, detail),
+    actionId,
+  });
+  // Nothing else happened, so a failed repost can simply be tapped again.
+  if (change.channel_only && !res.ok) return release(`${t.actionFailed} ${res.error ?? ""}`.trim());
+  const channelSet = Boolean(await getUpdatesChannel());
+  const text = res.ok
+    ? asRule
+      ? t.actionRulePublished
+      : t.actionAcceptedPublished
+    : channelSet
+      ? `${t.actionAcceptedSiteOnly} (${res.error ?? "?"})`
+      : t.actionAcceptedSiteOnly;
+  return { text, done: true };
+}
+
+/** The card bullets (and the rule-change entry) a change adds. True on failure. */
+async function applyChangeToSite(
+  admin: ReturnType<typeof createAdminClient>,
+  change: ChangePayload,
+  today: string,
+  asRule: boolean
+): Promise<boolean> {
+  const { location_id, detail } = change;
   const locationIds = [location_id, ...(change.also_location_ids ?? [])];
   const { error: noteError } = await admin.from("community_notes").insert(
     locationIds.map((id) => ({
@@ -322,34 +360,18 @@ export async function performAction(actionId: number, variant: string | undefine
       observed_on: today,
     }))
   );
-  if (noteError) return release(t.actionFailed);
+  if (noteError) return true;
   if (change.retire_note_ids?.length) {
     await admin.from("community_notes").update({ moderation_status: "hidden" }).in("id", change.retire_note_ids);
   }
 
-  const asRule = variant === "r";
   if (asRule) {
     const { error: ruleError } = await admin
       .from("rule_changes")
       .insert({ location_id, effective_date: today, title: clip(detail.trim(), 300) });
     if (ruleError) console.error("rule change not recorded:", ruleError.message);
   }
-
-  const res = await publishChannelPost({
-    kind: asRule ? "rule" : "change",
-    locationId: location_id,
-    text: asRule ? formatRulePost(offices, today, detail) : formatChangePost(offices, detail),
-    actionId,
-  });
-  const channelSet = Boolean(await getUpdatesChannel());
-  const text = res.ok
-    ? asRule
-      ? t.actionRulePublished
-      : t.actionAcceptedPublished
-    : channelSet
-      ? `${t.actionAcceptedSiteOnly} (${res.error ?? "?"})`
-      : t.actionAcceptedSiteOnly;
-  return { text, done: true };
+  return false;
 }
 
 async function loadReportPost(admin: ReturnType<typeof createAdminClient>, reportId: string): Promise<ReportForPost | null> {
@@ -422,8 +444,9 @@ export async function describeDraft(d: DraftRow): Promise<string | null> {
   const change = d.payload as ChangePayload;
   const offices = await loadOffices(admin, change);
   if (offices.length === 0) return null;
-  const lines = [`<b>${esc(t.draftHeader)}</b>`, "", formatChangePost(offices, change.detail)];
-  if (change.retire_note_ids?.length) {
+  const header = change.channel_only ? t.draftRepostHeader : t.draftHeader;
+  const lines = [`<b>${esc(header)}</b>`, "", formatChangePost(offices, change.detail)];
+  if (change.retire_note_ids?.length && !change.channel_only) {
     const { data: old } = await admin.from("community_notes").select("body").in("id", change.retire_note_ids);
     if (old?.length) lines.push("", `<b>${esc(t.draftReplaces)}:</b>`, ...old.map((n) => `• <s>${esc(n.body as string)}</s>`));
   }
@@ -551,6 +574,10 @@ export async function refreshChannelPosts(): Promise<{ updated: number; skipped:
     else {
       skipped++;
       errors.push(`#${post.id}: ${res.error ?? "?"}`);
+      // Deleted from the channel by hand: forget it, or every refresh retries.
+      if (res.error?.includes("message to edit not found")) {
+        await admin.from("channel_posts").update({ message_id: null }).eq("id", post.id);
+      }
       console.error(`channel post ${post.id} not refreshed:`, res.error);
     }
   }

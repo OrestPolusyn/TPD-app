@@ -473,6 +473,7 @@
     "adminCommandPostGuide": "Опублікувати або оновити довідку ДПСУ в каналі",
     "adminCommandPending": "Чернетки на погодження",
     "draftHeader": "📝 Чернетка з чатів",
+    "draftRepostHeader": "📝 Повторна публікація в канал (на сайті вже є)",
     "draftReportHeader": "📝 Чернетка звіту — опублікувати в канал?",
     "draftAlso": "Також для",
     "draftReplaces": "Замінить (буде приховано)",
