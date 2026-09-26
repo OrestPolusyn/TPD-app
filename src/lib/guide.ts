@@ -7,6 +7,8 @@
  * something is done (e.g. ordering the certificate without a lawyer) the
  * guide says so and asks, rather than filling the gap with a guess.
  */
+import { esc } from "@/lib/telegram/html";
+
 export const GUIDE_AS_OF = "2026-09-25";
 
 export interface GuideCity {
@@ -85,17 +87,17 @@ export const guideCityGroups: GuideCityGroup[] = [
   },
 ];
 
-/** The channel version: the few lines people actually need, then a link. */
+/** The channel version: the few lines people actually need, then a link. Telegram HTML. */
 export function guidePostText(): string {
   const [wet, sworn, , rejected] = guideCityGroups;
-  const names = (g: GuideCityGroup) => g.cities.map((c) => c.label).join(", ");
+  const names = (g: GuideCityGroup) => esc(g.cities.map((c) => c.label).join(", "));
   return [
-    "📌 Довідка ДПСУ про перетин кордону — коротко",
+    "📌 <b>Довідка ДПСУ про перетин кордону — коротко</b>",
     "",
     "• Показуйте роздруківку + перевірку PDF на czo.gov.ua/verify зі свого телефона",
-    `• Мокра печатка: ${names(wet)}`,
-    `• Присяжний переклад: ${names(sworn)}`,
-    `• Не визнають (потрібен штамп): ${names(rejected)}`,
+    `• <b>Мокра печатка:</b> ${names(wet)}`,
+    `• <b>Присяжний переклад:</b> ${names(sworn)}`,
+    `• <b>Не визнають (потрібен штамп):</b> ${names(rejected)}`,
     "• «Дійсна до» — строк дозволу на підпис, не самої довідки",
     "",
     "Усе докладно — кнопка «Детальніше». Щось змінилось — «✏️ Змінилось».",

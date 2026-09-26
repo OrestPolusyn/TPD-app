@@ -6,8 +6,9 @@ import { config } from "@/lib/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getModeratorChatId } from "@/lib/telegram/notifyModerator";
 import { getSiteStats, formatStatsMessage } from "@/lib/stats";
-import { CHANGE_START_PREFIX, VOTE_PREFIX, toggleChannelVote } from "@/lib/telegram/channel";
-import { notifyTelegramChange } from "@/lib/telegram/notifyModerator";
+import { CHANGE_START_PREFIX, STORY_START_PREFIX, VOTE_PREFIX, toggleChannelVote } from "@/lib/telegram/channel";
+import { notifyTelegramChange, notifyTelegramStory } from "@/lib/telegram/notifyModerator";
+import { cityUk } from "@/lib/cityNames";
 import messages from "../../../../../messages/uk.json";
 
 export const dynamic = "force-dynamic";
@@ -98,9 +99,9 @@ async function handleMessage(token: string, update: TelegramUpdate) {
   const text = update.message?.text?.trim() ?? "";
   if (!chatId) return;
 
-  // Not a command: possibly the answer to "what changed?".
+  // Not a command: possibly the answer to "what changed?" or "tell your story".
   if (!text.startsWith("/")) {
-    if (text && update.message?.from) await answerChangeQuestion(token, chatId, update.message.from, text);
+    if (text && update.message?.from) await answerPendingQuestion(token, chatId, update.message.from, text);
     return;
   }
 
@@ -145,6 +146,13 @@ async function handleMessage(token: string, update: TelegramUpdate) {
 
   if (payload.startsWith(CHANGE_START_PREFIX) && update.message?.from) {
     await askWhatChanged(token, chatId, update.message.from.id, payload.slice(CHANGE_START_PREFIX.length));
+    return;
+  }
+
+  // "💬 Моя історія" under a post (story_<postId>), or the channel's own
+  // link with no post (plain "story").
+  if ((payload === "story" || payload.startsWith(STORY_START_PREFIX)) && update.message?.from) {
+    await askForStory(token, chatId, update.message.from.id, payload.slice(STORY_START_PREFIX.length));
     return;
   }
 
@@ -290,7 +298,7 @@ async function askWhatChanged(token: string, chatId: number, userId: number, ref
       return;
     }
     const { data: location } = await admin.from("locations").select("city, name").eq("id", locationId).maybeSingle();
-    subject = location ? `${location.city} — ${location.name}` : locationId;
+    subject = location ? `${cityUk(location.city)} — ${location.name}` : locationId;
   }
 
   await admin.from("bot_conversations").upsert({
@@ -302,19 +310,65 @@ async function askWhatChanged(token: string, chatId: number, userId: number, ref
   await send(token, "sendMessage", { chat_id: chatId, text: t.changeQuestion.replace("{subject}", subject) });
 }
 
-async function answerChangeQuestion(token: string, chatId: number, from: TelegramFrom, text: string) {
+/** How long "tell your story" waits: a story takes longer to write. */
+const STORY_QUESTION_TTL_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * "💬 Моя історія": the bot asks for the person's story in their own words.
+ * Nothing is published from here — the story goes to the owner, who decides
+ * whether it goes into the channel (anonymously).
+ */
+async function askForStory(token: string, chatId: number, userId: number, ref: string) {
+  const t = messages.telegramBot;
+  const admin = createAdminClient();
+
+  let locationId: string | null = null;
+  let subject: string | null = null;
+  const postId = Number(ref) || 0;
+  if (postId) {
+    const { data: post } = await admin.from("channel_posts").select("location_id").eq("id", postId).maybeSingle();
+    locationId = (post?.location_id as string | null) ?? null;
+    if (locationId) {
+      const { data: location } = await admin.from("locations").select("city, name").eq("id", locationId).maybeSingle();
+      subject = location ? `${cityUk(location.city)} — ${location.name}` : null;
+    }
+  }
+
+  await admin.from("bot_conversations").upsert({
+    tg_user_id: userId,
+    kind: "story",
+    ref: { location_id: locationId, subject },
+    expires_at: new Date(Date.now() + STORY_QUESTION_TTL_MS).toISOString(),
+  });
+  await send(token, "sendMessage", {
+    chat_id: chatId,
+    text: subject ? t.storyQuestionAbout.replace("{subject}", subject) : t.storyQuestion,
+  });
+}
+
+/** The person's next plain message after "Змінилось" or "Моя історія". */
+async function answerPendingQuestion(token: string, chatId: number, from: TelegramFrom, text: string) {
   const t = messages.telegramBot;
   const admin = createAdminClient();
   const { data: pending } = await admin
     .from("bot_conversations")
-    .select("ref, expires_at")
+    .select("kind, ref, expires_at")
     .eq("tg_user_id", from.id)
-    .eq("kind", "change")
     .maybeSingle();
   if (!pending) return;
   await admin.from("bot_conversations").delete().eq("tg_user_id", from.id);
+  const isStory = pending.kind === "story";
   if (new Date(pending.expires_at as string).getTime() < Date.now()) {
-    await send(token, "sendMessage", { chat_id: chatId, text: t.changeExpired });
+    await send(token, "sendMessage", { chat_id: chatId, text: isStory ? t.storyExpired : t.changeExpired });
+    return;
+  }
+
+  const fromName = from.first_name?.trim() || t.anonymousName;
+  const fromUsername = from.username ?? null;
+  if (isStory) {
+    const ref = pending.ref as { location_id: string | null; subject: string | null };
+    await notifyTelegramStory({ locationId: ref.location_id, subject: ref.subject, story: text.slice(0, 2000), fromName, fromUsername });
+    await send(token, "sendMessage", { chat_id: chatId, text: t.storyThanks });
     return;
   }
 
@@ -323,8 +377,8 @@ async function answerChangeQuestion(token: string, chatId: number, from: Telegra
     locationId: ref.location_id,
     locationName: ref.subject,
     detail: text.slice(0, 1000),
-    fromName: from.first_name?.trim() || t.anonymousName,
-    fromUsername: from.username ?? null,
+    fromName,
+    fromUsername,
   });
   await send(token, "sendMessage", { chat_id: chatId, text: t.changeThanks });
 }

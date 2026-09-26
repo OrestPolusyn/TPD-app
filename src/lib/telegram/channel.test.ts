@@ -22,6 +22,13 @@ describe("channel post buttons", () => {
     expect(second[1].url).toBe("https://tp.example/locations/comisaria-alicante");
   });
 
+  it("invites the reader's own story on its own row, through the bot", () => {
+    setBot("app");
+    const kb = postKeyboard({ postId: 42, locationId: "comisaria-alicante", votes: 0 });
+    const last = kb.inline_keyboard[kb.inline_keyboard.length - 1];
+    expect(last).toEqual([{ text: "💬 Моя історія", url: "https://t.me/tpspain_bot?start=story_42" }]);
+  });
+
   it("shows the running count once someone has confirmed", () => {
     setBot("app");
     const kb = postKeyboard({ postId: 42, locationId: "comisaria-alicante", votes: 12 });
@@ -57,8 +64,8 @@ describe("channel post buttons", () => {
 describe("guide post", () => {
   it("names the cities by requirement and stays short", () => {
     const post = guidePostText();
-    expect(post).toContain("Мокра печатка: Малага");
-    expect(post).toContain("Не визнають (потрібен штамп): Мадрид, Більбао");
+    expect(post).toContain("<b>Мокра печатка:</b> Малага");
+    expect(post).toContain("<b>Не визнають (потрібен штамп):</b> Мадрид, Більбао");
     expect(post).toContain("#довідки");
     expect(post.length).toBeLessThan(1000);
   });

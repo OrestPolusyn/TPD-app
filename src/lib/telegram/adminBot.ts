@@ -1,11 +1,14 @@
 import { callTelegram, getWebhookInfo } from "@/lib/telegram/api";
 import { deriveWebhookSecret } from "@/lib/telegram/webhookSecret";
-import { getUpdatesChannel } from "@/lib/telegram/settings";
-import { publishChannelPost, locationUrl } from "@/lib/telegram/channel";
+import { getAdminBotToken, getModeratorChatId, getUpdatesChannel } from "@/lib/telegram/settings";
+import { publishChannelPost, locationUrl, updateChannelPost } from "@/lib/telegram/channel";
+import { guidePostText } from "@/lib/guide";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { madridDate } from "@/lib/stats";
 import { formatDate } from "@/lib/format";
 import { config } from "@/lib/config";
+import { cityHashtagUk, cityUk } from "@/lib/cityNames";
+import { esc } from "@/lib/telegram/html";
 import messages from "../../../messages/uk.json";
 
 /** Where the admin bot's updates arrive (/api/telegram/admin-webhook). */
@@ -41,9 +44,31 @@ export async function ensureAdminWebhook(token: string): Promise<{ ok: boolean; 
   return { ok: res.ok, changed: res.ok, error: res.ok ? undefined : res.description };
 }
 
+/** The command menu, shown only in the owner's chat with the admin bot. */
+export function setAdminCommands(token: string, owner: string) {
+  const t = messages.telegramBot;
+  return callTelegram(token, "setMyCommands", {
+    commands: [
+      { command: "pending", description: t.adminCommandPending },
+      { command: "stats", description: t.adminCommandStats },
+      { command: "post_guide", description: t.adminCommandPostGuide },
+      { command: "refresh_posts", description: t.adminCommandRefreshPosts },
+    ],
+    scope: { type: "chat", chat_id: owner },
+  });
+}
+
 export type NoticeAction =
   | { kind: "publish_report"; payload: { report_id: string } }
-  | { kind: "accept_change"; payload: ChangePayload };
+  | { kind: "accept_change"; payload: ChangePayload }
+  | { kind: "publish_story"; payload: StoryPayload };
+
+/** A reader's story from "💬 Моя історія". Published without their name. */
+export interface StoryPayload {
+  story: string;
+  location_id: string | null;
+  source: "telegram";
+}
 
 /**
  * A reported or drafted change. Beyond the office and the text, a draft
@@ -105,17 +130,44 @@ const OUTCOME_ICON: Record<string, string> = {
   could_not_get_appointment: "📵",
 };
 
-/** "#Alicante", "#PuertodelaCruz" — searchable in the channel. */
-export function cityHashtag(city: string): string {
-  return `#${city.replace(/[^\p{L}\p{N}]/gu, "")}`;
-}
-
 function clip(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
 }
 
+export interface OfficeRef {
+  id: string;
+  city: string;
+  name: string;
+}
+
+/**
+ * The first lines of every post: the city in Ukrainian and bold, so a reader
+ * scrolling the channel sees at once whether it is about them, then the
+ * office(s) in italics. "Pozuelo de Alarcón" alone left people guessing that
+ * it was Madrid.
+ */
+function officesHeading(offices: OfficeRef[], suffix?: string): string[] {
+  const cities = [...new Set(offices.map((o) => cityUk(o.city)))];
+  const title = `📍 <b>${esc(cities.join(", "))}</b>${suffix ? ` · ${esc(suffix)}` : ""}`;
+  return [title, ...offices.map((o) => `<i>${esc(o.name)}</i>`)];
+}
+
+function hashtags(offices: OfficeRef[]): string {
+  return [...new Set(offices.map((o) => cityHashtagUk(o.city)))].join(" ");
+}
+
+/**
+ * Reports copied from the community chats start with "З чату спільноти: …".
+ * In a post that reads better as a label above the quote than as the first
+ * words of it.
+ */
+export function splitSourceLabel(comment: string): { label: string | null; text: string } {
+  const match = /^(З чат[^:\n]{0,60}):\s*/u.exec(comment);
+  return match ? { label: match[1], text: comment.slice(match[0].length) } : { label: null, text: comment };
+}
+
 interface ReportForPost {
-  location: { id: string; name: string; city: string };
+  location: OfficeRef;
   outcome: string;
   event_date: string;
   comment: string | null;
@@ -123,44 +175,75 @@ interface ReportForPost {
   missing: string[];
 }
 
+/** Channel posts and admin messages are sent with parse_mode HTML. */
 export function formatReportPost(r: ReportForPost): string {
   const t = messages.telegramBot;
   const outcomes = messages.outcomes as Record<string, string>;
   const lines = [
-    `📍 ${r.location.city} — ${r.location.name}`,
-    `${OUTCOME_ICON[r.outcome] ?? "•"} ${outcomes[r.outcome] ?? r.outcome} · ${formatDate(r.event_date)}`,
+    ...officesHeading([r.location]),
+    "",
+    `${OUTCOME_ICON[r.outcome] ?? "•"} <b>${esc(outcomes[r.outcome] ?? r.outcome)}</b> · ${esc(formatDate(r.event_date))}`,
   ];
-  if (r.requested.length > 0) lines.push(`${t.postRequested}: ${r.requested.join(", ")}`);
-  if (r.missing.length > 0) lines.push(`${t.postMissing}: ${r.missing.join(", ")}`);
-  if (r.comment?.trim()) lines.push("", `«${clip(r.comment.trim(), 400)}»`);
-  lines.push("", `${t.postMore}: ${locationUrl(r.location.id)}`, cityHashtag(r.location.city));
+  if (r.requested.length > 0) lines.push(`${esc(t.postRequested)}: ${esc(r.requested.join(", "))}`);
+  if (r.missing.length > 0) lines.push(`${esc(t.postMissing)}: ${esc(r.missing.join(", "))}`);
+  if (r.comment?.trim()) {
+    const { label, text } = splitSourceLabel(r.comment.trim());
+    lines.push("");
+    if (label) lines.push(`💬 <i>${esc(label)}</i>`);
+    lines.push(`«${esc(clip(text, 400))}»`);
+  }
+  lines.push("", `${esc(t.postMore)}: ${esc(locationUrl(r.location.id))}`, hashtags([r.location]));
   return lines.join("\n");
 }
 
-export function formatChangePost(location: { id: string; city: string; name: string }, detail: string): string {
+/** An accepted change; the first office is the one the link opens. */
+export function formatChangePost(offices: OfficeRef[], detail: string): string {
   const t = messages.telegramBot;
   return [
-    `📍 ${location.city} — ${t.postUpdate}`,
-    location.name,
+    ...officesHeading(offices, t.postUpdate),
     "",
-    clip(detail.trim(), 600),
+    esc(clip(detail.trim(), 600)),
     "",
-    `${t.postCurrent}: ${locationUrl(location.id)}`,
-    cityHashtag(location.city),
+    `${esc(t.postCurrent)}: ${esc(locationUrl(offices[0].id))}`,
+    hashtags(offices),
   ].join("\n");
 }
 
-export function formatRulePost(location: { id: string; city: string; name: string }, date: string, detail: string): string {
+export function formatRulePost(offices: OfficeRef[], date: string, detail: string): string {
   const t = messages.telegramBot;
+  const cities = [...new Set(offices.map((o) => cityUk(o.city)))].join(", ");
   return [
-    `⚠️ ${t.postRuleChange} · ${location.city}`,
-    location.name,
+    `⚠️ <b>${esc(t.postRuleChange)} · ${esc(cities)}</b>`,
+    ...offices.map((o) => `<i>${esc(o.name)}</i>`),
     "",
-    `${formatDate(date)}: ${clip(detail.trim(), 600)}`,
+    `<b>${esc(formatDate(date))}:</b> ${esc(clip(detail.trim(), 600))}`,
     "",
-    `${t.postCurrent}: ${locationUrl(location.id)}`,
-    `#${t.postRuleTag} ${cityHashtag(location.city)}`,
+    `${esc(t.postCurrent)}: ${esc(locationUrl(offices[0].id))}`,
+    `#${esc(t.postRuleTag)} ${hashtags(offices)}`,
   ].join("\n");
+}
+
+/** A reader's story, anonymous; tied to an office when it came from one's post. */
+export function formatStoryPost(office: OfficeRef | null, story: string): string {
+  const t = messages.telegramBot;
+  const lines = office ? [...officesHeading([office]), ""] : [];
+  lines.push(`💬 <b>${esc(t.postStory)}</b>`, "", `«${esc(clip(story.trim(), 1500))}»`, "", esc(t.postStoryInvite));
+  lines.push(office ? `#${esc(t.postStoryTag)} ${hashtags([office])}` : `#${esc(t.postStoryTag)}`);
+  return lines.join("\n");
+}
+
+async function loadOffice(admin: ReturnType<typeof createAdminClient>, id: string | null): Promise<OfficeRef | null> {
+  if (!id) return null;
+  const { data } = await admin.from("locations").select("id, city, name").eq("id", id).maybeSingle();
+  return (data as OfficeRef | null) ?? null;
+}
+
+/** The offices a change applies to, main one first. */
+async function loadOffices(admin: ReturnType<typeof createAdminClient>, change: ChangePayload): Promise<OfficeRef[]> {
+  const ids = [change.location_id, ...(change.also_location_ids ?? [])];
+  const { data } = await admin.from("locations").select("id, city, name").in("id", ids);
+  const byId = new Map((data ?? []).map((l) => [l.id as string, l as OfficeRef]));
+  return ids.map((id) => byId.get(id)).filter((l): l is OfficeRef => Boolean(l));
 }
 
 /**
@@ -200,15 +283,33 @@ export async function performAction(actionId: number, variant: string | undefine
     const reportId = (claimed.payload as { report_id: string }).report_id;
     const post = await loadReportPost(admin, reportId);
     if (!post) return release(t.actionMissing);
-    const res = await publishChannelPost({ kind: "report", locationId: post.location.id, text: formatReportPost(post) });
+    const res = await publishChannelPost({
+      kind: "report",
+      locationId: post.location.id,
+      text: formatReportPost(post),
+      actionId,
+    });
+    if (!res.ok) return release(`${t.actionFailed} ${res.error ?? ""}`.trim());
+    return { text: t.actionPublished, done: true };
+  }
+
+  if (claimed.kind === "publish_story") {
+    const story = claimed.payload as StoryPayload;
+    const office = await loadOffice(admin, story.location_id);
+    const res = await publishChannelPost({
+      kind: "story",
+      locationId: office?.id ?? null,
+      text: formatStoryPost(office, story.story),
+      actionId,
+    });
     if (!res.ok) return release(`${t.actionFailed} ${res.error ?? ""}`.trim());
     return { text: t.actionPublished, done: true };
   }
 
   const change = claimed.payload as ChangePayload;
   const { location_id, detail } = change;
-  const { data: location } = await admin.from("locations").select("id, name, city").eq("id", location_id).maybeSingle();
-  if (!location) return release(t.actionMissing);
+  const offices = await loadOffices(admin, change);
+  if (offices[0]?.id !== location_id) return release(t.actionMissing);
 
   const today = madridDate(new Date());
   const locationIds = [location_id, ...(change.also_location_ids ?? [])];
@@ -237,7 +338,8 @@ export async function performAction(actionId: number, variant: string | undefine
   const res = await publishChannelPost({
     kind: asRule ? "rule" : "change",
     locationId: location_id,
-    text: asRule ? formatRulePost(location, today, detail) : formatChangePost(location, detail),
+    text: asRule ? formatRulePost(offices, today, detail) : formatChangePost(offices, detail),
+    actionId,
   });
   const channelSet = Boolean(await getUpdatesChannel());
   const text = res.ok
@@ -282,10 +384,10 @@ async function loadReportPost(admin: ReturnType<typeof createAdminClient>, repor
 /** The keyboard for an action that already exists (drafts listed by /pending). */
 export function actionKeyboard(actionId: number, kind: string, channelSet: boolean) {
   const t = messages.telegramBot;
-  if (kind === "publish_report") {
+  if (kind === "publish_report" || kind === "publish_story") {
     return {
       inline_keyboard: [
-        [{ text: t.publishButton, callback_data: `act:${actionId}` }],
+        [{ text: kind === "publish_story" ? t.publishStoryButton : t.publishButton, callback_data: `act:${actionId}` }],
         [{ text: t.rejectButton, callback_data: `act:${actionId}:x` }],
       ],
     };
@@ -299,15 +401,38 @@ export function actionKeyboard(actionId: number, kind: string, channelSet: boole
   };
 }
 
+interface DraftRow {
+  id: number;
+  kind: string;
+  payload: unknown;
+}
+
 /**
- * Drafts waiting for the owner: updates prepared from the chats (bot_actions
- * with payload.source = "draft"), each rendered as the message it would
- * become plus what it would replace. Sent one message per draft by /pending.
+ * One draft as the owner sees it: the post exactly as it would appear in the
+ * channel, under a header, plus which card bullets it would replace.
+ * Null when what it points at is gone.
  */
-export async function describeDrafts(): Promise<{ id: number; kind: string; text: string }[]> {
+export async function describeDraft(d: DraftRow): Promise<string | null> {
   const t = messages.telegramBot;
   const admin = createAdminClient();
-  const { data: drafts } = await admin
+  if (d.kind === "publish_report") {
+    const post = await loadReportPost(admin, (d.payload as { report_id: string }).report_id);
+    return post ? `<b>${esc(t.draftReportHeader)}</b>\n\n${formatReportPost(post)}` : null;
+  }
+  const change = d.payload as ChangePayload;
+  const offices = await loadOffices(admin, change);
+  if (offices.length === 0) return null;
+  const lines = [`<b>${esc(t.draftHeader)}</b>`, "", formatChangePost(offices, change.detail)];
+  if (change.retire_note_ids?.length) {
+    const { data: old } = await admin.from("community_notes").select("body").in("id", change.retire_note_ids);
+    if (old?.length) lines.push("", `<b>${esc(t.draftReplaces)}:</b>`, ...old.map((n) => `• <s>${esc(n.body as string)}</s>`));
+  }
+  return lines.join("\n");
+}
+
+/** Drafts still waiting for the owner, for /pending. */
+export async function describeDrafts(): Promise<{ id: number; kind: string; text: string }[]> {
+  const { data: drafts } = await createAdminClient()
     .from("bot_actions")
     .select("id, kind, payload")
     .is("done_at", null)
@@ -315,24 +440,116 @@ export async function describeDrafts(): Promise<{ id: number; kind: string; text
     .order("id");
 
   const out: { id: number; kind: string; text: string }[] = [];
-  for (const d of drafts ?? []) {
-    if (d.kind === "publish_report") {
-      const post = await loadReportPost(admin, (d.payload as { report_id: string }).report_id);
-      if (post) out.push({ id: d.id, kind: d.kind, text: `${t.draftReportHeader}\n\n${formatReportPost(post)}` });
-      continue;
-    }
-    const change = d.payload as ChangePayload;
-    const ids = [change.location_id, ...(change.also_location_ids ?? [])];
-    const { data: locs } = await admin.from("locations").select("id, city, name").in("id", ids);
-    const main = locs?.find((l) => l.id === change.location_id);
-    const others = (locs ?? []).filter((l) => l.id !== change.location_id).map((l) => l.name);
-    const lines = [`${t.draftHeader} · ${main?.city ?? change.location_id}`, main?.name ?? "", "", change.detail];
-    if (others.length) lines.push("", `${t.draftAlso}: ${others.join(", ")}`);
-    if (change.retire_note_ids?.length) {
-      const { data: old } = await admin.from("community_notes").select("body").in("id", change.retire_note_ids);
-      if (old?.length) lines.push("", `${t.draftReplaces}:`, ...old.map((n) => `• ${n.body}`));
-    }
-    out.push({ id: d.id, kind: d.kind, text: lines.join("\n") });
+  for (const d of (drafts ?? []) as DraftRow[]) {
+    const text = await describeDraft(d);
+    if (text) out.push({ id: d.id, kind: d.kind, text });
   }
   return out;
+}
+
+/**
+ * Sends every draft the owner has not been shown yet, each with its buttons.
+ *
+ * Drafts are rows written straight into bot_actions (from the chats, by
+ * hand or by a script), so nothing in the app sees them arrive; a database
+ * trigger calls /api/telegram/drafts-dispatch, which calls this. Claimed via
+ * notified_at before sending, so a second trigger firing meanwhile cannot
+ * send a draft twice; released again if Telegram refuses it.
+ */
+export async function dispatchDrafts(opts: { resend?: boolean } = {}): Promise<{ sent: number; failed: number }> {
+  const token = await getAdminBotToken();
+  const chatId = await getModeratorChatId();
+  if (!token || !chatId) return { sent: 0, failed: 0 };
+
+  const admin = createAdminClient();
+  let query = admin
+    .from("bot_actions")
+    .update({ notified_at: new Date().toISOString() })
+    .is("done_at", null)
+    .eq("payload->>source", "draft");
+  if (!opts.resend) query = query.is("notified_at", null);
+  const { data: claimed, error } = await query.select("id, kind, payload");
+  if (error) {
+    console.error("could not claim drafts:", error.message);
+    return { sent: 0, failed: 0 };
+  }
+
+  const channelSet = Boolean(await getUpdatesChannel());
+  let sent = 0;
+  let failed = 0;
+  const ordered = ((claimed ?? []) as DraftRow[]).sort((a, b) => a.id - b.id);
+  for (const d of ordered) {
+    const text = await describeDraft(d);
+    const res = text
+      ? await callTelegram(token, "sendMessage", {
+          chat_id: chatId,
+          text,
+          parse_mode: "HTML",
+          link_preview_options: { is_disabled: true },
+          reply_markup: actionKeyboard(d.id, d.kind, channelSet),
+        })
+      : { ok: false, description: "draft target missing" };
+    if (res.ok) {
+      sent++;
+    } else {
+      failed++;
+      console.error(`draft ${d.id} not sent:`, res.description);
+      await admin.from("bot_actions").update({ notified_at: null }).eq("id", d.id);
+    }
+  }
+  return { sent, failed };
+}
+
+/**
+ * Redraws a published channel post from what it was made of — for when the
+ * post format changes (Ukrainian city names) and old posts should match.
+ * Only posts that remember their source (action_id, or the guide).
+ */
+export async function refreshChannelPosts(): Promise<{ updated: number; skipped: number }> {
+  const admin = createAdminClient();
+  const { data: posts } = await admin
+    .from("channel_posts")
+    .select("id, kind, action_id, created_at")
+    .not("message_id", "is", null)
+    .order("id");
+
+  let updated = 0;
+  let skipped = 0;
+  for (const post of posts ?? []) {
+    let text: string | null = null;
+    let detailUrl: string | undefined;
+    if (post.kind === "guide") {
+      text = guidePostText();
+      detailUrl = `${config.siteUrl().replace(/\/$/, "")}/guide/dovidka`;
+    } else if (post.action_id) {
+      const { data: action } = await admin.from("bot_actions").select("kind, payload").eq("id", post.action_id).maybeSingle();
+      if (action?.kind === "publish_story") {
+        const story = action.payload as StoryPayload;
+        text = formatStoryPost(await loadOffice(admin, story.location_id), story.story);
+      } else if (action?.kind === "publish_report") {
+        const report = await loadReportPost(admin, (action.payload as { report_id: string }).report_id);
+        text = report ? formatReportPost(report) : null;
+      } else if (action) {
+        const change = action.payload as ChangePayload;
+        const offices = await loadOffices(admin, change);
+        if (offices.length > 0) {
+          text =
+            post.kind === "rule"
+              ? formatRulePost(offices, madridDate(new Date(post.created_at as string)), change.detail)
+              : formatChangePost(offices, change.detail);
+        }
+      }
+    }
+    if (!text) {
+      skipped++;
+      continue;
+    }
+    const res = await updateChannelPost(post.id as number, text, detailUrl);
+    if (res.ok) updated++;
+    else {
+      skipped++;
+      console.error(`channel post ${post.id} not refreshed:`, res.error);
+    }
+  }
+  return { updated, skipped };
 }

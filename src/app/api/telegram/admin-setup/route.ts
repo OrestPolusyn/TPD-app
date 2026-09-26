@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { callTelegram, getMe } from "@/lib/telegram/api";
-import { ensureAdminWebhook, adminWebhookUrl } from "@/lib/telegram/adminBot";
+import { ensureAdminWebhook, adminWebhookUrl, setAdminCommands } from "@/lib/telegram/adminBot";
 import { getAdminBotToken, getModeratorChatId, getUpdatesChannel } from "@/lib/telegram/settings";
 import messages from "../../../../../messages/uk.json";
 
@@ -27,16 +27,7 @@ export async function GET(request: Request) {
 
     // The command menu, shown only in the owner's chat with the bot.
     const owner = await getModeratorChatId();
-    const commands = owner
-      ? await callTelegram(token, "setMyCommands", {
-          commands: [
-            { command: "pending", description: messages.telegramBot.adminCommandPending },
-            { command: "stats", description: messages.telegramBot.adminCommandStats },
-            { command: "post_guide", description: messages.telegramBot.adminCommandPostGuide },
-          ],
-          scope: { type: "chat", chat_id: owner },
-        })
-      : null;
+    const commands = owner ? await setAdminCommands(token, owner) : null;
     const report: Record<string, unknown> = {
       ok: webhook.ok,
       bot: `@${bot.username}`,

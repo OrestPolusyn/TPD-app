@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { callTelegram } from "@/lib/telegram/api";
 import { deriveWebhookSecret } from "@/lib/telegram/webhookSecret";
 import { getAdminBotToken, getModeratorChatId, getUpdatesChannel } from "@/lib/telegram/settings";
-import { actionKeyboard, describeDrafts, performAction } from "@/lib/telegram/adminBot";
+import { actionKeyboard, describeDrafts, performAction, refreshChannelPosts } from "@/lib/telegram/adminBot";
 import { publishChannelPost, updateChannelPost } from "@/lib/telegram/channel";
 import { guidePostText } from "@/lib/guide";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -104,10 +104,22 @@ async function handleMessage(token: string, owner: string | null, message: NonNu
       await callTelegram(token, "sendMessage", {
         chat_id: chatId,
         text: draft.text,
+        parse_mode: "HTML",
         link_preview_options: { is_disabled: true },
         reply_markup: actionKeyboard(draft.id, draft.kind, channelSet),
       });
     }
+    return;
+  }
+
+  // /refresh_posts: redraws every channel post in the current format (city
+  // in Ukrainian, bold) — buttons and vote counts stay.
+  if (command === "/refresh_posts" && owner === String(chatId)) {
+    const { updated, skipped } = await refreshChannelPosts();
+    await callTelegram(token, "sendMessage", {
+      chat_id: chatId,
+      text: messages.telegramBot.postsRefreshed.replace("{updated}", String(updated)).replace("{skipped}", String(skipped)),
+    });
     return;
   }
 

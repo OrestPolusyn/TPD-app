@@ -4,12 +4,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { config } from "@/lib/config";
 import messages from "../../../messages/uk.json";
 
-export type ChannelPostKind = "report" | "change" | "rule" | "guide";
+export type ChannelPostKind = "report" | "change" | "rule" | "guide" | "story";
 
 /** callback_data of the "✅ Актуально" button: `v:<postId>`. */
 export const VOTE_PREFIX = "v:";
 /** /start payload that opens "what changed?" for a post: `chg_<postId>`. */
 export const CHANGE_START_PREFIX = "chg_";
+/** /start payload that asks for the reader's own story: `story_<postId>`. */
+export const STORY_START_PREFIX = "story_";
 
 function siteUrl(): string {
   return config.siteUrl().replace(/\/$/, "");
@@ -41,8 +43,8 @@ interface KeyboardInput {
 /**
  * The buttons under every channel post. Only "✅ Актуально" is a callback —
  * the rest are links, so they work for anyone reading the channel, bot or no
- * bot, and "✏️ Змінилось" opens a private chat with the bot where the
- * person can say what changed without posting it publicly.
+ * bot, and "✏️ Змінилось" / "💬 Моя історія" open a private chat with the
+ * bot where the person can write without posting it publicly.
  */
 export function postKeyboard({ postId, locationId, votes, detailUrl }: KeyboardInput) {
   const t = messages.telegramBot;
@@ -57,11 +59,16 @@ export function postKeyboard({ postId, locationId, votes, detailUrl }: KeyboardI
   const more = detailUrl ?? (locationId ? locationUrl(locationId) : null);
   if (more) second.push({ text: t.channelMore, url: more });
 
-  return { inline_keyboard: second.length > 0 ? [first, second] : [first] };
+  const rows = second.length > 0 ? [first, second] : [first];
+  // "💬 Моя історія": a story in the reader's own words, sent privately to
+  // the bot and published (anonymously) only after the owner approves it.
+  if (bot) rows.push([{ text: t.channelStory, url: `https://t.me/${bot}?start=${STORY_START_PREFIX}${postId}` }]);
+  return { inline_keyboard: rows };
 }
 
 /**
- * Publishes to the updates channel through the public (login) bot.
+ * Publishes to the updates channel through the public (login) bot. `text`
+ * is Telegram HTML — escape anything that came from people.
  *
  * The public bot rather than the admin one because the buttons are for
  * everyone: taps on "✅ Актуально" are delivered to whichever bot posted,
@@ -73,6 +80,8 @@ export async function publishChannelPost(input: {
   locationId: string | null;
   text: string;
   detailUrl?: string;
+  /** The bot_actions row it came from, so the post can be redrawn later. */
+  actionId?: number;
 }): Promise<{ ok: boolean; error?: string }> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const channel = await getUpdatesChannel();
@@ -81,7 +90,7 @@ export async function publishChannelPost(input: {
   const admin = createAdminClient();
   const { data: post, error } = await admin
     .from("channel_posts")
-    .insert({ kind: input.kind, location_id: input.locationId, chat_id: channel })
+    .insert({ kind: input.kind, location_id: input.locationId, chat_id: channel, action_id: input.actionId ?? null })
     .select("id")
     .single();
   if (error || !post) return { ok: false, error: error?.message ?? "could not store post" };
@@ -89,6 +98,7 @@ export async function publishChannelPost(input: {
   const res = await callTelegram<{ message_id: number; chat: { id: number } }>(token, "sendMessage", {
     chat_id: channel,
     text: input.text,
+    parse_mode: "HTML",
     link_preview_options: { is_disabled: true },
     reply_markup: postKeyboard({ postId: post.id, locationId: input.locationId, votes: 0, detailUrl: input.detailUrl }),
   });
@@ -179,6 +189,7 @@ export async function updateChannelPost(postId: number, text: string, detailUrl?
     chat_id: post.chat_id,
     message_id: post.message_id,
     text,
+    parse_mode: "HTML",
     link_preview_options: { is_disabled: true },
     reply_markup: postKeyboard({ postId, locationId: post.location_id as string | null, votes: count ?? 0, detailUrl }),
   });

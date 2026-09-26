@@ -40,3 +40,11 @@ export function getAdminBotToken() {
 export function getUpdatesChannel() {
   return getSetting("TELEGRAM_UPDATES_CHANNEL", "updates_channel");
 }
+
+/**
+ * Shared secret between the database and /api/telegram/drafts-dispatch:
+ * the trigger that fires when a draft is inserted sends it as a header.
+ */
+export function getDispatchSecret() {
+  return getSetting("DRAFTS_DISPATCH_SECRET", "dispatch_secret");
+}
