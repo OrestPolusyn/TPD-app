@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="640" height="640">
+  <defs>
+    <linearGradient id="bgB" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1B6FE0"/>
+      <stop offset="1" stop-color="#0B3A8C"/>
+    </linearGradient>
+    <filter id="shB" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#021a4a" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+  <rect width="640" height="640" fill="url(#bgB)"/>
+  <g transform="translate(320 345) scale(0.84) translate(-320 -330)">
+  <!-- road: from the bottom-left, winding up to the pin -->
+  <path d="M110 600 C 170 470 470 500 420 380 C 390 305 250 330 300 250"
+        fill="none" stroke="#FFD400" stroke-width="64" stroke-linecap="round"/>
+  <path d="M110 600 C 170 470 470 500 420 380 C 390 305 250 330 300 250"
+        fill="none" stroke="#0B3A8C" stroke-width="7" stroke-linecap="round" stroke-dasharray="22 26" opacity="0.9"/>
+  <!-- destination pin in Spain's colours -->
+  <g filter="url(#shB)">
+    <path fill="#D6132E" d="M330 262 C 296 214 246 176 246 124 A84 84 0 1 1 414 124 C 414 176 364 214 330 262 Z"/>
+    <circle cx="330" cy="124" r="36" fill="#FFC400"/>
+  </g>
+</g>
+</svg>
