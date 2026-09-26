@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TP Spain — збирач повідомлень</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --text: #16181d; --muted: #616875; --line: #e2e5ea;
+    --accent: #2563eb; --accent-text: #fff; --danger: #c62828; --ok: #1b7f3b; --mark: #fff3bf;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111318; --card: #1a1d24; --text: #e8eaee; --muted: #9aa1ad; --line: #2b2f38;
+      --accent: #4c86f5; --danger: #ef6b6b; --ok: #4cc27a; --mark: #4a3f10; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 0 0 12px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  input[type=text], input[type=password], input[type=tel], select {
+    flex: 1 1 220px; min-width: 0; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); color: var(--text); font: inherit; }
+  button { padding: 9px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+  button:disabled { opacity: .55; cursor: default; }
+  button.link { border: 0; background: none; color: var(--danger); padding: 4px 6px; }
+  .hint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+  .hint a { color: var(--accent); }
+  .error { color: var(--danger); margin: 8px 0 0; white-space: pre-wrap; }
+  .ok { color: var(--ok); }
+  ol, ul { margin: 0; padding-left: 20px; }
+  .sources li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .sources li:last-child { border-bottom: 0; }
+  .sources .ref { color: var(--muted); font-size: 13px; }
+  .dialogs { max-height: 320px; overflow: auto; margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; }
+  .dialogs div { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  .dialogs div:last-child { border-bottom: 0; }
+  .muted { color: var(--muted); }
+  .chat { margin-top: 18px; }
+  .chat h3 { font-size: 15px; margin: 0 0 6px; }
+  .msg { border-left: 3px solid var(--line); padding: 4px 0 4px 10px; margin: 8px 0; }
+  .msg .meta { color: var(--muted); font-size: 12px; }
+  .msg .meta a { color: var(--accent); }
+  .msg .text { white-space: pre-wrap; word-break: break-word; }
+  mark { background: var(--mark); color: inherit; border-radius: 3px; }
+  label.check { display: flex; gap: 6px; align-items: center; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>TP Spain — збирач повідомлень</h1>
+  <p class="sub">Збирає текст повідомлень із ваших груп Telegram за останні години. Лише дата, текст і посилання — без імен і фото. Працює тільки на цьому компʼютері.</p>
+
+  <section class="card" id="api" hidden>
+    <h2>1. Ключ Telegram (один раз)</h2>
+    <ol>
+      <li>Відкрийте <a href="https://my.telegram.org" target="_blank" rel="noreferrer">my.telegram.org</a> і увійдіть своїм номером.</li>
+      <li>«API development tools» → заповніть назву (будь-яку, напр. <i>tpspain</i>) → «Create application».</li>
+      <li>Скопіюйте сюди <b>App api_id</b> і <b>App api_hash</b>.</li>
+    </ol>
+    <div class="row" style="margin-top:12px">
+      <input type="text" id="apiId" placeholder="api_id (число)" inputmode="numeric">
+      <input type="password" id="apiHash" placeholder="api_hash">
+      <button class="primary" id="saveApi">Зберегти</button>
+    </div>
+    <p class="error" id="apiError"></p>
+  </section>
+
+  <section class="card" id="login" hidden>
+    <h2>2. Вхід у Telegram</h2>
+    <div class="row" id="phoneRow">
+      <input type="tel" id="phone" placeholder="Номер телефону, напр. +34600111222">
+      <button class="primary" id="sendCode">Надіслати код</button>
+    </div>
+    <div class="row" id="codeRow" hidden>
+      <input type="text" id="code" placeholder="Код із Telegram" inputmode="numeric" autocomplete="one-time-code">
+      <button class="primary" id="verifyCode">Увійти</button>
+    </div>
+    <div class="row" id="passwordRow" hidden>
+      <input type="password" id="password" placeholder="Пароль двоетапної перевірки">
+      <button class="primary" id="verifyPassword">Увійти</button>
+    </div>
+    <p class="hint">Код прийде в сам Telegram (чат «Telegram»). Вхід зберігається — наступного разу не потрібно.</p>
+    <p class="error" id="loginError"></p>
+  </section>
+
+  <section id="work" hidden>
+    <section class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0">Групи для сканування</h2>
+        <span class="muted" id="me"></span>
+      </div>
+      <ul class="sources" id="sources" style="margin-top:10px"></ul>
+      <p class="muted" id="noSources">Поки порожньо — додайте групу нижче.</p>
+      <div class="row" style="margin-top:12px">
+        <input type="text" id="sourceText" placeholder="Посилання або @назва: t.me/spain_useful, t.me/spain_useful/74767 (тема)">
+        <button id="addSource">Додати</button>
+        <button id="showDialogs">Мої групи…</button>
+      </div>
+      <p class="hint">Для групи з темами додайте посилання на тему — число після назви (як у «share link» теми).</p>
+      <p class="error" id="sourceError"></p>
+      <div id="dialogsBox" hidden>
+        <input type="text" id="dialogFilter" placeholder="Пошук серед моїх груп" style="width:100%;margin-top:10px">
+        <div class="dialogs" id="dialogs"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Сканування</h2>
+      <div class="row">
+        <label>За останні
+          <select id="hours" style="flex:0 0 auto;margin-left:6px">
+            <option value="6">6 год</option><option value="12">12 год</option><option value="14">14 год</option>
+            <option value="18">18 год</option><option value="24">24 год</option><option value="48">2 доби</option><option value="72">3 доби</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="onlyRelevant"> лише про документи, запис, поліцію, довідки</label>
+        <button class="primary" id="scan">Сканувати</button>
+      </div>
+      <p class="error" id="scanError"></p>
+    </section>
+
+    <section class="card" id="resultsCard" hidden>
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0" id="resultsTitle">Результат</h2>
+        <div class="row">
+          <button id="copyAll">Копіювати все</button>
+          <button id="download">Зберегти файл</button>
+        </div>
+      </div>
+      <p class="hint" id="savedTo"></p>
+      <div id="results"></div>
+    </section>
+
+    <p class="hint"><button class="link" id="logout" style="color:var(--muted)">Вийти з Telegram на цьому компʼютері</button></p>
+  </section>
+</main>
+
+<script>
+const TOKEN = "__TOKEN__";
+const $ = (id) => document.getElementById(id);
+let state = null;
+let lastReport = null;
+let dialogs = [];
+
+async function api(path, body) {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Token": TOKEN },
+    body: JSON.stringify(body || {}),
+  });
+  const data = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+async function busy(button, fn, errorEl) {
+  if (errorEl) errorEl.textContent = "";
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = "…";
+  try { await fn(); }
+  catch (e) { if (errorEl) errorEl.textContent = e.message; }
+  finally { button.disabled = false; button.textContent = label; }
+}
+
+function render() {
+  const s = state.status.state;
+  $("api").hidden = s !== "needs_api";
+  $("login").hidden = !["needs_login", "needs_code", "needs_password"].includes(s);
+  $("work").hidden = s !== "ready";
+  $("phoneRow").hidden = s !== "needs_login";
+  $("codeRow").hidden = s !== "needs_code";
+  $("passwordRow").hidden = s !== "needs_password";
+  if (state.config.api_id) $("apiId").value = state.config.api_id;
+  $("me").textContent = state.status.me ? `Увійшли як ${state.status.me}` : "";
+  $("hours").value = String(state.config.hours || 24);
+  $("onlyRelevant").checked = !!state.config.only_relevant;
+
+  const list = $("sources");
+  list.textContent = "";
+  (state.config.sources || []).forEach((src, i) => {
+    const li = document.createElement("li");
+    const left = document.createElement("div");
+    const title = document.createElement("div");
+    title.textContent = src.title || src.ref;
+    const ref = document.createElement("div");
+    ref.className = "ref";
+    ref.textContent = src.ref + (src.topic ? ` · тема ${src.topic}` : "");
+    left.append(title, ref);
+    const remove = document.createElement("button");
+    remove.className = "link";
+    remove.textContent = "Прибрати";
+    remove.onclick = () => busy(remove, async () => { state.config = (await api("/api/sources/remove", { index: i })).config; render(); });
+    li.append(left, remove);
+    list.append(li);
+  });
+  $("noSources").hidden = (state.config.sources || []).length > 0;
+}
+
+async function refresh() {
+  state = await api("/api/state");
+  render();
+}
+
+$("saveApi").onclick = () => busy($("saveApi"), async () => {
+  state = await api("/api/config", { api_id: $("apiId").value, api_hash: $("apiHash").value });
+  render();
+}, $("apiError"));
+
+$("sendCode").onclick = () => busy($("sendCode"), async () => {
+  state.status = await api("/api/login/code", { phone: $("phone").value });
+  render();
+  $("code").focus();
+}, $("loginError"));
+
+$("verifyCode").onclick = () => busy($("verifyCode"), async () => {
+  state.status = await api("/api/login/verify", { code: $("code").value });
+  if (state.status.state === "ready") await refresh(); else render();
+}, $("loginError"));
+
+$("verifyPassword").onclick = () => busy($("verifyPassword"), async () => {
+  state.status = await api("/api/login/password", { password: $("password").value });
+  $("password").value = "";
+  if (state.status.state === "ready") await refresh(); else render();
+}, $("loginError"));
+
+$("addSource").onclick = () => busy($("addSource"), async () => {
+  state.config = (await api("/api/sources/add", { text: $("sourceText").value })).config;
+  $("sourceText").value = "";
+  render();
+}, $("sourceError"));
+
+function renderDialogs() {
+  const q = $("dialogFilter").value.trim().toLowerCase();
+  const box = $("dialogs");
+  box.textContent = "";
+  const added = new Set((state.config.sources || []).filter((s) => !s.topic).map((s) => s.ref));
+  dialogs.filter((d) => !q || d.title.toLowerCase().includes(q) || (d.username || "").toLowerCase().includes(q)).forEach((d) => {
+    const row = document.createElement("div");
+    const name = document.createElement("span");
+    name.textContent = `${d.title} `;
+    const kind = document.createElement("span");
+    kind.className = "muted";
+    kind.textContent = `${d.kind}${d.forum ? " з темами" : ""}${d.username ? " · @" + d.username : ""}`;
+    name.append(kind);
+    const add = document.createElement("button");
+    const isAdded = added.has(d.ref) || (d.username && added.has(d.username));
+    add.textContent = isAdded ? "Додано" : "Додати";
+    add.disabled = isAdded;
+    add.onclick = () => busy(add, async () => {
+      state.config = (await api("/api/sources/add", { ref: d.username || d.ref, title: d.title })).config;
+      render();
+      renderDialogs();
+    }, $("sourceError"));
+    row.append(name, add);
+    box.append(row);
+  });
+}
+
+$("showDialogs").onclick = () => busy($("showDialogs"), async () => {
+  dialogs = (await api("/api/dialogs")).dialogs;
+  $("dialogsBox").hidden = false;
+  renderDialogs();
+  $("dialogFilter").focus();
+}, $("sourceError"));
+$("dialogFilter").oninput = renderDialogs;
+
+$("hours").onchange = () => api("/api/config", { hours: Number($("hours").value) }).then((s) => { state = s; }).catch(() => {});
+$("onlyRelevant").onchange = () => api("/api/config", { only_relevant: $("onlyRelevant").checked }).then((s) => { state = s; }).catch(() => {});
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleString("uk-UA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+const KEYWORD_RE = /(?<![\p{L}\p{N}_])(довідк|справк|штамп|печатк|резерв|cita|сіта|сита|запис|поліц|полиц|комісар|комиссар|comisar|extranjer|creade|переклад|перевод|присяжн|відмов|отказ)/giu;
+
+function highlighted(text) {
+  const frag = document.createDocumentFragment();
+  let last = 0;
+  for (const m of text.matchAll(KEYWORD_RE)) {
+    frag.append(text.slice(last, m.index));
+    const mark = document.createElement("mark");
+    mark.textContent = m[0];
+    frag.append(mark);
+    last = m.index + m[0].length;
+  }
+  frag.append(text.slice(last));
+  return frag;
+}
+
+function renderReport(report) {
+  lastReport = report;
+  const total = report.chats.reduce((n, c) => n + c.messages.length, 0);
+  $("resultsTitle").textContent = `Знайдено повідомлень: ${total} · за ${report.hours} год`;
+  $("savedTo").textContent = report.file ? `Збережено також у файл: ${report.file}` : "";
+  const box = $("results");
+  box.textContent = "";
+  for (const chat of report.chats) {
+    const section = document.createElement("div");
+    section.className = "chat";
+    const h = document.createElement("h3");
+    h.textContent = `${chat.title} — ${chat.messages.length}` + (chat.skipped ? ` (ще ${chat.skipped} не про документи)` : "");
+    section.append(h);
+    if (chat.error) {
+      const p = document.createElement("p");
+      p.className = "error";
+      p.textContent = chat.error;
+      section.append(p);
+    }
+    for (const m of chat.messages) {
+      const div = document.createElement("div");
+      div.className = "msg";
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.append(fmtDate(m.date) + " · ");
+      const a = document.createElement("a");
+      a.href = m.link; a.target = "_blank"; a.rel = "noreferrer"; a.textContent = "відкрити в Telegram";
+      meta.append(a);
+      const text = document.createElement("div");
+      text.className = "text";
+      text.append(highlighted(m.text));
+      div.append(meta, text);
+      section.append(div);
+    }
+    box.append(section);
+  }
+  $("resultsCard").hidden = false;
+}
+
+$("scan").onclick = () => busy($("scan"), async () => {
+  $("scan").textContent = "Скануємо…";
+  renderReport(await api("/api/scan"));
+}, $("scanError"));
+
+function reportAsText(report) {
+  const out = [`Повідомлення з чатів за ${report.hours} год (${fmtDate(report.generated_at)})`, ""];
+  for (const chat of report.chats) {
+    out.push(`=== ${chat.title} (${chat.messages.length}) ===`);
+    for (const m of chat.messages) out.push(`[${fmtDate(m.date)}] ${m.text}`, "");
+  }
+  return out.join("\n");
+}
+
+$("copyAll").onclick = async () => {
+  if (!lastReport) return;
+  const text = reportAsText(lastReport);
+  try { await navigator.clipboard.writeText(text); $("copyAll").textContent = "Скопійовано ✓"; }
+  catch { const t = document.createElement("textarea"); t.value = text; document.body.append(t); t.select(); document.execCommand("copy"); t.remove(); $("copyAll").textContent = "Скопійовано ✓"; }
+  setTimeout(() => { $("copyAll").textContent = "Копіювати все"; }, 2000);
+};
+
+$("download").onclick = () => {
+  if (!lastReport) return;
+  const blob = new Blob([JSON.stringify(lastReport, null, 1)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `chats-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+$("logout").onclick = () => busy($("logout"), async () => {
+  if (!confirm("Вийти з Telegram у цьому застосунку?")) return;
+  state.status = await api("/api/logout");
+  render();
+});
+
+refresh().catch((e) => {
+  const p = document.createElement("p");
+  p.className = "error";
+  p.textContent = `Не вдалося зʼєднатися із застосунком: ${e.message}`;
+  document.querySelector("main").append(p);
+});
+</script>
+</body>
+</html>
