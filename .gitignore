@@ -44,3 +44,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Telegram login session of scripts/tg_export.py — a signed-in account
+*.session
+*.session-journal
