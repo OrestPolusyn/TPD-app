@@ -43,25 +43,35 @@ export async function GET(request: Request) {
       commands: commands ? { ok: commands.ok, error: commands.ok ? undefined : commands.description } : "no moderator chat",
     };
 
+    // The channel is posted to by the public (login) bot — its buttons are
+    // for everyone — so that is the bot whose rights are checked here.
     const channel = await getUpdatesChannel();
-    if (channel) {
-      const chat = await callTelegram<{ id: number; title?: string }>(token, "getChat", { chat_id: channel });
+    const publicToken = process.env.TELEGRAM_BOT_TOKEN;
+    const publicBot = publicToken ? await getMe(publicToken) : null;
+    if (!channel) {
+      report.channel = "not configured (app_settings.updates_channel)";
+    } else if (!publicToken || !publicBot) {
+      report.channel = { id: channel, error: "TELEGRAM_BOT_TOKEN (the public bot) is missing or rejected" };
+    } else {
+      const chat = await callTelegram<{ id: number; title?: string }>(publicToken, "getChat", { chat_id: channel });
       const member = chat.ok
-        ? await callTelegram<{ status: string; can_post_messages?: boolean }>(token, "getChatMember", {
-            chat_id: channel,
-            user_id: bot.id,
-          })
+        ? await callTelegram<{ status: string; can_post_messages?: boolean; can_edit_messages?: boolean }>(
+            publicToken,
+            "getChatMember",
+            { chat_id: channel, user_id: publicBot.id }
+          )
         : null;
+      const isAdmin = member?.result?.status === "administrator";
       report.channel = {
         id: channel,
+        postsAs: `@${publicBot.username}`,
         found: chat.ok,
         title: chat.result?.title,
         botStatus: member?.result?.status,
-        canPost: member?.result?.status === "administrator" && member.result.can_post_messages !== false,
+        canPost: isAdmin && member?.result?.can_post_messages !== false,
+        canEditCounters: isAdmin && member?.result?.can_edit_messages !== false,
         error: chat.ok ? undefined : chat.description,
       };
-    } else {
-      report.channel = "not configured (app_settings.updates_channel)";
     }
 
     if (new URL(request.url).searchParams.get("test") === "1") {
