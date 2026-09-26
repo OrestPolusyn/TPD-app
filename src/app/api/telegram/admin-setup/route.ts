@@ -24,10 +24,23 @@ export async function GET(request: Request) {
     if (!bot) return NextResponse.json({ ok: false, error: "Telegram rejected the admin bot token" });
 
     const webhook = await ensureAdminWebhook(token);
+
+    // The command menu, shown only in the owner's chat with the bot.
+    const owner = await getModeratorChatId();
+    const commands = owner
+      ? await callTelegram(token, "setMyCommands", {
+          commands: [
+            { command: "stats", description: messages.telegramBot.adminCommandStats },
+            { command: "post_guide", description: messages.telegramBot.adminCommandPostGuide },
+          ],
+          scope: { type: "chat", chat_id: owner },
+        })
+      : null;
     const report: Record<string, unknown> = {
       ok: webhook.ok,
       bot: `@${bot.username}`,
       webhook: { url: adminWebhookUrl(), ...webhook },
+      commands: commands ? { ok: commands.ok, error: commands.ok ? undefined : commands.description } : "no moderator chat",
     };
 
     const channel = await getUpdatesChannel();
@@ -52,7 +65,6 @@ export async function GET(request: Request) {
     }
 
     if (new URL(request.url).searchParams.get("test") === "1") {
-      const owner = await getModeratorChatId();
       const sent = owner
         ? await callTelegram(token, "sendMessage", { chat_id: owner, text: messages.telegramBot.adminSetupTest })
         : { ok: false, description: "no moderator chat configured" };
