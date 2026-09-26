@@ -157,3 +157,32 @@ export async function toggleChannelVote(
     });
   }
 }
+
+/**
+ * Brings an already-published post up to date — its text changes, its
+ * buttons (and their vote count) stay. Used for the pinned guide post, which
+ * must not be re-posted every time a city's requirement changes.
+ */
+export async function updateChannelPost(postId: number, text: string, detailUrl?: string): Promise<{ ok: boolean; error?: string }> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return { ok: false, error: "no_token" };
+  const admin = createAdminClient();
+  const { data: post } = await admin
+    .from("channel_posts")
+    .select("id, chat_id, message_id, location_id")
+    .eq("id", postId)
+    .maybeSingle();
+  if (!post?.chat_id || !post.message_id) return { ok: false, error: "post_not_found" };
+
+  const { count } = await admin.from("channel_post_votes").select("post_id", { count: "exact", head: true }).eq("post_id", postId);
+  const res = await callTelegram(token, "editMessageText", {
+    chat_id: post.chat_id,
+    message_id: post.message_id,
+    text,
+    link_preview_options: { is_disabled: true },
+    reply_markup: postKeyboard({ postId, locationId: post.location_id as string | null, votes: count ?? 0, detailUrl }),
+  });
+  // Telegram refuses an edit that changes nothing; for us that means "already current".
+  if (!res.ok && res.description?.includes("message is not modified")) return { ok: true };
+  return { ok: res.ok, error: res.description };
+}

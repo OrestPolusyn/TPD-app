@@ -470,13 +470,14 @@
     "anonymousName": "Без імені",
     "guidePosted": "Опубліковано в канал. Можна закріпити 📌",
     "adminCommandStats": "Статистика сайту",
-    "adminCommandPostGuide": "Опублікувати довідку ДПСУ в канал",
+    "adminCommandPostGuide": "Опублікувати або оновити довідку ДПСУ в каналі",
     "adminCommandPending": "Чернетки на погодження",
     "draftHeader": "📝 Чернетка з чатів",
     "draftReportHeader": "📝 Чернетка звіту — опублікувати в канал?",
     "draftAlso": "Також для",
     "draftReplaces": "Замінить (буде приховано)",
-    "draftNone": "Чернеток на погодження немає 👌"
+    "draftNone": "Чернеток на погодження немає 👌",
+    "guideUpdated": "Пост із довідкою в каналі оновлено ✅"
   },
   "theme": {
     "label": "Тема",

@@ -3,7 +3,7 @@ import { callTelegram } from "@/lib/telegram/api";
 import { deriveWebhookSecret } from "@/lib/telegram/webhookSecret";
 import { getAdminBotToken, getModeratorChatId, getUpdatesChannel } from "@/lib/telegram/settings";
 import { actionKeyboard, describeDrafts, performAction } from "@/lib/telegram/adminBot";
-import { publishChannelPost } from "@/lib/telegram/channel";
+import { publishChannelPost, updateChannelPost } from "@/lib/telegram/channel";
 import { guidePostText } from "@/lib/guide";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSiteStats, formatStatsMessage } from "@/lib/stats";
@@ -68,16 +68,25 @@ async function handleMessage(token: string, owner: string | null, message: NonNu
 
   // /post_guide: the ДПСУ-certificate guide as a channel post, with the same
   // buttons as any other — worth pinning in the channel.
+  // Updates the existing guide post in place (text changes, buttons and
+  // votes stay) — it is meant to be pinned, so it must not be re-posted.
   if (command === "/post_guide" && owner === String(chatId)) {
-    const res = await publishChannelPost({
-      kind: "guide",
-      locationId: null,
-      text: guidePostText(),
-      detailUrl: `${config.siteUrl().replace(/\/$/, "")}/guide/dovidka`,
-    });
+    const detailUrl = `${config.siteUrl().replace(/\/$/, "")}/guide/dovidka`;
+    const { data: existing } = await createAdminClient()
+      .from("channel_posts")
+      .select("id")
+      .eq("kind", "guide")
+      .not("message_id", "is", null)
+      .order("id", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const res = existing
+      ? await updateChannelPost(existing.id as number, guidePostText(), detailUrl)
+      : await publishChannelPost({ kind: "guide", locationId: null, text: guidePostText(), detailUrl });
+    const t = messages.telegramBot;
     await callTelegram(token, "sendMessage", {
       chat_id: chatId,
-      text: res.ok ? messages.telegramBot.guidePosted : `${messages.telegramBot.actionFailed} ${res.error ?? ""}`,
+      text: res.ok ? (existing ? t.guideUpdated : t.guidePosted) : `${t.actionFailed} ${res.error ?? ""}`,
     });
     return;
   }
