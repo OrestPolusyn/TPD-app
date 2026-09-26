@@ -57,8 +57,8 @@ describe("channel post buttons", () => {
 describe("guide post", () => {
   it("names the cities by requirement and stays short", () => {
     const post = guidePostText();
-    expect(post).toContain("Мокра печатка: Мадрид, Малага");
-    expect(post).toContain("Не визнають (потрібен штамп): Більбао");
+    expect(post).toContain("Мокра печатка: Малага");
+    expect(post).toContain("Не визнають (потрібен штамп): Мадрид, Більбао");
     expect(post).toContain("#довідки");
     expect(post.length).toBeLessThan(1000);
   });

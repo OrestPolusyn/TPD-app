@@ -7,7 +7,7 @@
  * something is done (e.g. ordering the certificate without a lawyer) the
  * guide says so and asks, rather than filling the gap with a guess.
  */
-export const GUIDE_AS_OF = "2026-09-24";
+export const GUIDE_AS_OF = "2026-09-25";
 
 export interface GuideCity {
   locationId: string;
@@ -54,7 +54,6 @@ export const guideCityGroups: GuideCityGroup[] = [
   {
     title: "Потрібна мокра печатка",
     cities: [
-      { locationId: "comisaria-pozuelo-de-alarcon", label: "Мадрид", note: "без неї не приймають (23.09)" },
       { locationId: "comisaria-malaga", label: "Малага" },
     ],
   },
@@ -67,6 +66,7 @@ export const guideCityGroups: GuideCityGroup[] = [
       { locationId: "comisaria-santa-cruz-de-tenerife", label: "Санта-Крус-де-Тенерифе" },
       { locationId: "comisaria-puerto-de-la-cruz", label: "Пуерто-де-ла-Крус" },
       { locationId: "comisaria-adeje", label: "Адехе" },
+      { locationId: "comisaria-oviedo", label: "Ов'єдо", note: "усі документи — офіційна відповідь поліції (25.09)" },
     ],
   },
   {
@@ -78,7 +78,10 @@ export const guideCityGroups: GuideCityGroup[] = [
   },
   {
     title: "Довідку не визнають — потрібен штамп",
-    cities: [{ locationId: "comisaria-bilbao", label: "Більбао" }],
+    cities: [
+      { locationId: "comisaria-pozuelo-de-alarcon", label: "Мадрид", note: "з 25.09 — навіть з мокрою печаткою; довідку з QR-кодом не приймали й раніше" },
+      { locationId: "comisaria-bilbao", label: "Більбао" },
+    ],
   },
 ];
 

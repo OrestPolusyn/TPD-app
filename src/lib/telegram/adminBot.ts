@@ -43,7 +43,24 @@ export async function ensureAdminWebhook(token: string): Promise<{ ok: boolean; 
 
 export type NoticeAction =
   | { kind: "publish_report"; payload: { report_id: string } }
-  | { kind: "accept_change"; payload: { location_id: string; detail: string; user_id?: string; source?: string } };
+  | { kind: "accept_change"; payload: ChangePayload };
+
+/**
+ * A reported or drafted change. Beyond the office and the text, a draft
+ * prepared from the chats can say which kind of card bullet it is,
+ * which outdated bullets it replaces (hidden on accept, so the card never
+ * says both "довідка з мокрою печаткою" and "лише штамп"), and which other
+ * offices share it (Madrid's comisaría and CREADE are one route).
+ */
+export interface ChangePayload {
+  location_id: string;
+  detail: string;
+  user_id?: string;
+  source?: string;
+  kind?: "document" | "info";
+  retire_note_ids?: string[];
+  also_location_ids?: string[];
+}
 
 /** One button under an admin notice; `variant` picks what the action does. */
 export interface ActionButton {
@@ -177,6 +194,8 @@ export async function performAction(actionId: number, variant: string | undefine
     return { text, done: false };
   };
 
+  if (variant === "x") return { text: t.actionRejected, done: true };
+
   if (claimed.kind === "publish_report") {
     const reportId = (claimed.payload as { report_id: string }).report_id;
     const post = await loadReportPost(admin, reportId);
@@ -186,21 +205,26 @@ export async function performAction(actionId: number, variant: string | undefine
     return { text: t.actionPublished, done: true };
   }
 
-  if (variant === "x") return { text: t.actionRejected, done: true };
-
-  const { location_id, detail } = claimed.payload as { location_id: string; detail: string };
+  const change = claimed.payload as ChangePayload;
+  const { location_id, detail } = change;
   const { data: location } = await admin.from("locations").select("id, name, city").eq("id", location_id).maybeSingle();
   if (!location) return release(t.actionMissing);
 
   const today = madridDate(new Date());
-  const { error: noteError } = await admin.from("community_notes").insert({
-    location_id,
-    kind: "info",
-    position: 0,
-    body: clip(detail.trim(), 600),
-    observed_on: today,
-  });
+  const locationIds = [location_id, ...(change.also_location_ids ?? [])];
+  const { error: noteError } = await admin.from("community_notes").insert(
+    locationIds.map((id) => ({
+      location_id: id,
+      kind: change.kind ?? "info",
+      position: 0,
+      body: clip(detail.trim(), 600),
+      observed_on: today,
+    }))
+  );
   if (noteError) return release(t.actionFailed);
+  if (change.retire_note_ids?.length) {
+    await admin.from("community_notes").update({ moderation_status: "hidden" }).in("id", change.retire_note_ids);
+  }
 
   const asRule = variant === "r";
   if (asRule) {
@@ -253,4 +277,62 @@ async function loadReportPost(admin: ReturnType<typeof createAdminClient>, repor
     requested: named("requested"),
     missing: named("requested_missing"),
   };
+}
+
+/** The keyboard for an action that already exists (drafts listed by /pending). */
+export function actionKeyboard(actionId: number, kind: string, channelSet: boolean) {
+  const t = messages.telegramBot;
+  if (kind === "publish_report") {
+    return {
+      inline_keyboard: [
+        [{ text: t.publishButton, callback_data: `act:${actionId}` }],
+        [{ text: t.rejectButton, callback_data: `act:${actionId}:x` }],
+      ],
+    };
+  }
+  return {
+    inline_keyboard: [
+      [{ text: channelSet ? t.acceptChangeButton : t.acceptChangeSiteOnlyButton, callback_data: `act:${actionId}:a` }],
+      [{ text: t.acceptRuleButton, callback_data: `act:${actionId}:r` }],
+      [{ text: t.rejectButton, callback_data: `act:${actionId}:x` }],
+    ],
+  };
+}
+
+/**
+ * Drafts waiting for the owner: updates prepared from the chats (bot_actions
+ * with payload.source = "draft"), each rendered as the message it would
+ * become plus what it would replace. Sent one message per draft by /pending.
+ */
+export async function describeDrafts(): Promise<{ id: number; kind: string; text: string }[]> {
+  const t = messages.telegramBot;
+  const admin = createAdminClient();
+  const { data: drafts } = await admin
+    .from("bot_actions")
+    .select("id, kind, payload")
+    .is("done_at", null)
+    .eq("payload->>source", "draft")
+    .order("id");
+
+  const out: { id: number; kind: string; text: string }[] = [];
+  for (const d of drafts ?? []) {
+    if (d.kind === "publish_report") {
+      const post = await loadReportPost(admin, (d.payload as { report_id: string }).report_id);
+      if (post) out.push({ id: d.id, kind: d.kind, text: `${t.draftReportHeader}\n\n${formatReportPost(post)}` });
+      continue;
+    }
+    const change = d.payload as ChangePayload;
+    const ids = [change.location_id, ...(change.also_location_ids ?? [])];
+    const { data: locs } = await admin.from("locations").select("id, city, name").in("id", ids);
+    const main = locs?.find((l) => l.id === change.location_id);
+    const others = (locs ?? []).filter((l) => l.id !== change.location_id).map((l) => l.name);
+    const lines = [`${t.draftHeader} · ${main?.city ?? change.location_id}`, main?.name ?? "", "", change.detail];
+    if (others.length) lines.push("", `${t.draftAlso}: ${others.join(", ")}`);
+    if (change.retire_note_ids?.length) {
+      const { data: old } = await admin.from("community_notes").select("body").in("id", change.retire_note_ids);
+      if (old?.length) lines.push("", `${t.draftReplaces}:`, ...old.map((n) => `• ${n.body}`));
+    }
+    out.push({ id: d.id, kind: d.kind, text: lines.join("\n") });
+  }
+  return out;
 }

@@ -30,6 +30,7 @@ export async function GET(request: Request) {
     const commands = owner
       ? await callTelegram(token, "setMyCommands", {
           commands: [
+            { command: "pending", description: messages.telegramBot.adminCommandPending },
             { command: "stats", description: messages.telegramBot.adminCommandStats },
             { command: "post_guide", description: messages.telegramBot.adminCommandPostGuide },
           ],

@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { callTelegram } from "@/lib/telegram/api";
 import { deriveWebhookSecret } from "@/lib/telegram/webhookSecret";
-import { getAdminBotToken, getModeratorChatId } from "@/lib/telegram/settings";
-import { performAction } from "@/lib/telegram/adminBot";
+import { getAdminBotToken, getModeratorChatId, getUpdatesChannel } from "@/lib/telegram/settings";
+import { actionKeyboard, describeDrafts, performAction } from "@/lib/telegram/adminBot";
 import { publishChannelPost } from "@/lib/telegram/channel";
 import { guidePostText } from "@/lib/guide";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -79,6 +79,26 @@ async function handleMessage(token: string, owner: string | null, message: NonNu
       chat_id: chatId,
       text: res.ok ? messages.telegramBot.guidePosted : `${messages.telegramBot.actionFailed} ${res.error ?? ""}`,
     });
+    return;
+  }
+
+  // /pending: every draft waiting for approval, one message each with its
+  // buttons — the same buttons as live notices, so approving works the same.
+  if (command === "/pending" && owner === String(chatId)) {
+    const drafts = await describeDrafts();
+    const channelSet = Boolean(await getUpdatesChannel());
+    if (drafts.length === 0) {
+      await callTelegram(token, "sendMessage", { chat_id: chatId, text: messages.telegramBot.draftNone });
+      return;
+    }
+    for (const draft of drafts) {
+      await callTelegram(token, "sendMessage", {
+        chat_id: chatId,
+        text: draft.text,
+        link_preview_options: { is_disabled: true },
+        reply_markup: actionKeyboard(draft.id, draft.kind, channelSet),
+      });
+    }
     return;
   }
 
