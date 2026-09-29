@@ -31,6 +31,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 try:
+    import segno
     from telethon import TelegramClient, errors
 except ImportError:  # pragma: no cover - explained to the person instead
     sys.exit("Telethon is not installed. Start the app with run.command (macOS) or run.bat (Windows).")
@@ -170,6 +171,9 @@ class Telegram:
         self.phone: str | None = None
         self.phone_code_hash: str | None = None
         self.code_via: str | None = None
+        self.qr = None  # Telethon QRLogin while a QR code is on screen
+        self.qr_task: asyncio.Task | None = None
+        self.qr_error: str | None = None
         self.dialogs_loaded = False
 
     def run(self, coro, timeout: float = 900):
@@ -193,6 +197,11 @@ class Telegram:
             return {"state": "needs_api"}
         client = await self._client(config)
         if not await client.is_user_authorized():
+            if self.qr is not None:
+                return self._qr_state()
+            if self.qr_error:
+                error, self.qr_error = self.qr_error, None
+                return {"state": "needs_login", "error": error}
             if self.phone_code_hash == "password":
                 return {"state": "needs_password"}
             # A code already went out: ask for it, never for the number again —
@@ -216,6 +225,47 @@ class Telegram:
         self.phone, self.phone_code_hash = phone, sent.phone_code_hash
         self.code_via = code_destination(sent.type)
         return {"state": "needs_code", "phone": phone, "via": self.code_via}
+
+    # QR login: the same as "Link desktop device" in Telegram. No code, so it
+    # works when codes do not arrive. Telegram only completes it while
+    # somebody is waiting for it, so the waiting runs in the background for
+    # as long as the code is on screen, renewing it every ~30 s; the page
+    # just asks for the current state.
+
+    def _qr_state(self) -> dict:
+        url = self.qr.url
+        svg = segno.make(url, error="m").svg_inline(scale=6, border=2, dark="#000", light="#fff")
+        return {"state": "needs_qr", "qr_url": url, "qr_svg": svg}
+
+    async def start_qr(self, config: dict) -> dict:
+        client = await self._client(config)
+        if await client.is_user_authorized():
+            return await self.status(config)
+        if self.qr is None or self.qr_task is None or self.qr_task.done():
+            self.qr_error = None
+            self.qr = await client.qr_login()
+            self.qr_task = asyncio.create_task(self._qr_loop())
+        return self._qr_state()
+
+    async def _qr_loop(self) -> None:
+        while self.qr is not None:
+            try:
+                await self.qr.wait()
+                self.qr = None
+            except asyncio.TimeoutError:
+                await self.qr.recreate()
+            except errors.SessionPasswordNeededError:
+                self.qr = None
+                self.phone_code_hash = "password"
+            except Exception as e:  # shown on the page, then back to the choice
+                self.qr = None
+                self.qr_error = f"{type(e).__name__}: {e}"
+
+    async def cancel_qr(self, config: dict) -> dict:
+        self.qr = None
+        if self.qr_task and not self.qr_task.done():
+            self.qr_task.cancel()
+        return await self.status(config)
 
     async def reset_login(self, config: dict) -> dict:
         """Forget a pending code, to enter another number or start over."""
@@ -433,6 +483,10 @@ class Handler(BaseHTTPRequestHandler):
             return telegram.run(telegram.verify_code(config, str(body.get("code", "")).strip()))
         if path == "/api/login/password":
             return telegram.run(telegram.verify_password(config, str(body.get("password", ""))))
+        if path == "/api/login/qr":
+            return telegram.run(telegram.start_qr(config))
+        if path == "/api/login/qr/cancel":
+            return telegram.run(telegram.cancel_qr(config))
         if path == "/api/login/reset":
             return telegram.run(telegram.reset_login(config))
         if path == "/api/logout":

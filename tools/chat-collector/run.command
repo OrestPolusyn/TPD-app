@@ -9,10 +9,11 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 if [ ! -x .venv/bin/python ]; then
   echo "Перший запуск: встановлюю потрібне…"
-  python3 -m venv .venv && ./.venv/bin/pip install -q --upgrade pip && ./.venv/bin/pip install -q -r requirements.txt || {
-    rm -rf .venv
-    read -r -p "Не вдалося встановити. Натисніть Enter, щоб закрити…"
-    exit 1
-  }
+  python3 -m venv .venv || { read -r -p "Не вдалося. Натисніть Enter, щоб закрити…"; exit 1; }
 fi
+# Every start: installs anything a newer version needs (instant when up to date).
+./.venv/bin/pip install -q --disable-pip-version-check -r requirements.txt || {
+  read -r -p "Не вдалося встановити. Перевірте інтернет і натисніть Enter…"
+  exit 1
+}
 ./.venv/bin/python collector.py
