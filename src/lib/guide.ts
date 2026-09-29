@@ -9,7 +9,7 @@
  */
 import { esc } from "@/lib/telegram/html";
 
-export const GUIDE_AS_OF = "2026-09-25";
+export const GUIDE_AS_OF = "2026-09-29";
 
 export interface GuideCity {
   locationId: string;
@@ -29,9 +29,10 @@ export const guideSections: { title: string; points: string[] }[] = [
   {
     title: "Як отримати",
     points: [
-      "Найчастіше замовляють через адвоката (адвокатський запит до ДПСУ).",
+      "Самостійно — запит на e-mail ДПСУ як звернення громадянина: відповідь до 30 днів (29.09).",
+      "Через адвоката (адвокатський запит) — швидше, від кількох днів, але платно.",
       "Готова довідка приходить на e-mail у PDF з електронним підписом ДПСУ.",
-      "Замовляли самостійно? Розкажіть як — кнопка «Знайшли неточність» унизу.",
+      "Паперову з мокрою печаткою (її хочуть не всюди) адвокат пересилає поштою — разом виходить близько місяця.",
     ],
   },
   {
@@ -40,6 +41,14 @@ export const guideSections: { title: string; points: string[] }[] = [
       "Роздрукуйте PDF.",
       "Майте оригінальний PDF у телефоні: у поліції просять відкрити czo.gov.ua/verify, завантажити файл і показати результат перевірки підпису. Перевірте заздалегідь, що все відкривається.",
       "Адвокати радять мати PDF ще й на флешці.",
+    ],
+  },
+  {
+    title: "Присяжний переклад",
+    points: [
+      "Присяжних перекладачів з української на всю Іспанію всього кілька: у Мадриді, Севільї та Валенсії. Офіційний список — на сайті МЗС Іспанії: exteriores.gob.es → Traductores e Intérpretes Jurados.",
+      "PDF можна надіслати перекладачу e-mail'ом: електронну версію отримаєте на пошту, оригінал з печатками — поштою.",
+      "Немає перекладача з української — роблять подвійний переклад: спершу англійською, потім іспанською.",
     ],
   },
   {
@@ -69,6 +78,7 @@ export const guideCityGroups: GuideCityGroup[] = [
       { locationId: "comisaria-puerto-de-la-cruz", label: "Пуерто-де-ла-Крус" },
       { locationId: "comisaria-adeje", label: "Адехе" },
       { locationId: "comisaria-oviedo", label: "Ов'єдо", note: "усі документи — офіційна відповідь поліції (25.09)" },
+      { locationId: "comisaria-zaragoza", label: "Сарагоса", note: "з 28.09; раніше брали й переклад через Google" },
     ],
   },
   {
@@ -81,15 +91,21 @@ export const guideCityGroups: GuideCityGroup[] = [
   {
     title: "Довідку не визнають — потрібен штамп",
     cities: [
-      { locationId: "comisaria-pozuelo-de-alarcon", label: "Мадрид", note: "з 25.09 — навіть з мокрою печаткою; довідку з QR-кодом не приймали й раніше" },
-      { locationId: "comisaria-bilbao", label: "Більбао" },
+      { locationId: "comisaria-pozuelo-de-alarcon", label: "Мадрид", note: "з 25.09 — навіть з мокрою печаткою (29.09 дані розходяться — уточнюється); довідку з QR-кодом не приймали й раніше" },
+      { locationId: "comisaria-bilbao", label: "Більбао", note: "зі штампом Резерв+ не потрібен; можливо, визнають з апостилем і присяжним перекладом — уточнюється (29.09)" },
+    ],
+  },
+  {
+    title: "Потрібна навіть якщо є штамп",
+    cities: [
+      { locationId: "comisaria-reus", label: "Реус", note: "«Salida de Ucrania» — на кожного, включно з дітьми (29.09)" },
     ],
   },
 ];
 
 /** The channel version: the few lines people actually need, then a link. Telegram HTML. */
 export function guidePostText(): string {
-  const [wet, sworn, , rejected] = guideCityGroups;
+  const [wet, sworn, , rejected, evenWithStamp] = guideCityGroups;
   const names = (g: GuideCityGroup) => esc(g.cities.map((c) => c.label).join(", "));
   return [
     "📌 <b>Довідка ДПСУ про перетин кордону — коротко</b>",
@@ -98,6 +114,7 @@ export function guidePostText(): string {
     `• <b>Мокра печатка:</b> ${names(wet)}`,
     `• <b>Присяжний переклад:</b> ${names(sworn)}`,
     `• <b>Не визнають (потрібен штамп):</b> ${names(rejected)}`,
+    `• <b>Потрібна навіть зі штампом:</b> ${names(evenWithStamp)}`,
     "• «Дійсна до» — строк дозволу на підпис, не самої довідки",
     "",
     "Усе докладно — кнопка «Детальніше». Щось змінилось — «✏️ Змінилось».",
