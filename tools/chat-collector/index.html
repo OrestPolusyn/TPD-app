@@ -129,7 +129,13 @@
             <option value="18">18 год</option><option value="24">24 год</option><option value="48">2 доби</option><option value="72">3 доби</option>
           </select>
         </label>
-        <label class="check"><input type="checkbox" id="onlyRelevant"> лише про документи, запис, поліцію, довідки</label>
+        <label>Показувати
+          <select id="filter" style="flex:0 0 auto;margin-left:6px">
+            <option value="normal">лише про захист</option>
+            <option value="strict">лише найважливіше (правила по містах)</option>
+            <option value="off">усе підряд</option>
+          </select>
+        </label>
         <button class="primary" id="scan">Сканувати</button>
       </div>
       <p class="error" id="scanError"></p>
@@ -201,7 +207,7 @@ function render() {
   if (state.config.api_id) $("apiId").value = state.config.api_id;
   $("me").textContent = state.status.me ? `Увійшли як ${state.status.me}` : "";
   $("hours").value = String(state.config.hours || 24);
-  $("onlyRelevant").checked = !!state.config.only_relevant;
+  $("filter").value = state.config.filter || "normal";
 
   const list = $("sources");
   list.textContent = "";
@@ -308,19 +314,20 @@ $("showDialogs").onclick = () => busy($("showDialogs"), async () => {
 $("dialogFilter").oninput = renderDialogs;
 
 $("hours").onchange = () => api("/api/config", { hours: Number($("hours").value) }).then((s) => { state = s; }).catch(() => {});
-$("onlyRelevant").onchange = () => api("/api/config", { only_relevant: $("onlyRelevant").checked }).then((s) => { state = s; }).catch(() => {});
+$("filter").onchange = () => api("/api/config", { filter: $("filter").value }).then((s) => { state = s; }).catch(() => {});
 
 function fmtDate(iso) {
   const d = new Date(iso);
   return d.toLocaleString("uk-UA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-const KEYWORD_RE = /(?<![\p{L}\p{N}_])(довідк|справк|штамп|печатк|резерв|cita|сіта|сита|запис|поліц|полиц|комісар|комиссар|comisar|extranjer|creade|переклад|перевод|присяжн|відмов|отказ)/giu;
-
-function highlighted(text) {
+/** Highlights the words the app matched (it sends them with each message). */
+function highlighted(text, hits) {
   const frag = document.createDocumentFragment();
+  if (!hits || hits.length === 0) { frag.append(text); return frag; }
+  const re = new RegExp(hits.map((h) => h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "giu");
   let last = 0;
-  for (const m of text.matchAll(KEYWORD_RE)) {
+  for (const m of text.matchAll(re)) {
     frag.append(text.slice(last, m.index));
     const mark = document.createElement("mark");
     mark.textContent = m[0];
@@ -342,7 +349,8 @@ function renderReport(report) {
     const section = document.createElement("div");
     section.className = "chat";
     const h = document.createElement("h3");
-    h.textContent = `${chat.title} — ${chat.messages.length}` + (chat.skipped ? ` (ще ${chat.skipped} не про документи)` : "");
+    const extra = [chat.skipped ? `${chat.skipped} не про захист` : "", chat.duplicates ? `${chat.duplicates} повторів` : ""].filter(Boolean);
+    h.textContent = `${chat.title} — ${chat.messages.length}` + (extra.length ? ` (сховано: ${extra.join(", ")})` : "");
     section.append(h);
     if (chat.error) {
       const p = document.createElement("p");
@@ -361,7 +369,7 @@ function renderReport(report) {
       meta.append(a);
       const text = document.createElement("div");
       text.className = "text";
-      text.append(highlighted(m.text));
+      text.append(highlighted(m.text, m.hits));
       div.append(meta, text);
       section.append(div);
     }

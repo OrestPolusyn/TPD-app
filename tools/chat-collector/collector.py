@@ -33,6 +33,8 @@ from pathlib import Path
 try:
     import segno
     from telethon import TelegramClient, errors
+
+    from relevance import LEVELS, is_relevant
 except ImportError:  # pragma: no cover - explained to the person instead
     sys.exit("Telethon is not installed. Start the app with run.command (macOS) or run.bat (Windows).")
 
@@ -52,25 +54,17 @@ ALLOWED_HOSTS = {f"127.0.0.1:{PORT}", f"localhost:{PORT}"}
 # A chat can be busy; this is a safety stop per chat per scan.
 MAX_MESSAGES_PER_CHAT = 5000
 
-# "Only relevant" keeps messages with one of these word starts — what the
-# updates are about: documents, appointments, police, the certificate.
-DEFAULT_KEYWORDS = [
-    "довідк", "справк", "штамп", "печатк", "резерв", "військов", "военн", "тз", "захист", "защит",
-    "cita", "сіта", "сита", "запис", "записа", "поліц", "полиц", "комісар", "комиссар", "comisar",
-    "extranjer", "creade", "asilo", "protecci", "huella", "відбит", "отпечат", "nie", "tie",
-    "документ", "переклад", "перевод", "присяжн", "паспорт", "відмов", "отказ", "прийма", "принима",
-    "черг", "очеред", "email", "e-mail", "пошт", "почт",
-]
-
-
 # --------------------------------------------------------------------------- settings
 
 def load_config() -> dict:
-    config = {"api_id": "", "api_hash": "", "hours": 24, "only_relevant": False, "sources": []}
+    config = {"api_id": "", "api_hash": "", "hours": 24, "filter": "normal", "sources": []}
     try:
         config.update(json.loads(CONFIG_FILE.read_text(encoding="utf-8")))
     except (FileNotFoundError, json.JSONDecodeError):
         pass
+    config.pop("only_relevant", None)  # the first version's yes/no filter
+    if config.get("filter") not in LEVELS:
+        config["filter"] = "normal"
     return config
 
 
@@ -125,11 +119,6 @@ def parse_source(text: str) -> dict:
         raise SourceError("Не схоже на посилання Telegram")
     topic = int(parts[1]) if len(parts) >= 2 and parts[1].isdigit() else None
     return {"ref": parts[0], "topic": topic}
-
-
-def keyword_pattern(keywords: list[str]) -> re.Pattern:
-    stems = sorted({k.strip().lower() for k in keywords if k.strip()}, key=len, reverse=True)
-    return re.compile(r"(?<!\w)(" + "|".join(re.escape(s) for s in stems) + ")", re.I)
 
 
 def code_destination(sent_type) -> str:
@@ -340,12 +329,12 @@ class Telegram:
         client = await self._client(config)
         hours = max(1, min(int(config.get("hours") or 24), 168))
         since = datetime.now(timezone.utc) - timedelta(hours=hours)
-        only_relevant = bool(config.get("only_relevant"))
-        pattern = keyword_pattern(config.get("keywords") or DEFAULT_KEYWORDS)
+        level = config.get("filter", "normal")
+        seen: set[str] = set()  # the same digest is forwarded to several chats
 
         chats = []
         for source in config.get("sources", []):
-            result = {"title": source.get("title") or source["ref"], "ref": source["ref"], "topic": source.get("topic"), "messages": [], "skipped": 0}
+            result = {"title": source.get("title") or source["ref"], "ref": source["ref"], "topic": source.get("topic"), "messages": [], "skipped": 0, "duplicates": 0}
             try:
                 entity = await self._entity(client, source["ref"])
                 async for m in client.iter_messages(entity, limit=MAX_MESSAGES_PER_CHAT, reply_to=source.get("topic")):
@@ -354,13 +343,20 @@ class Telegram:
                     text = (m.message or "").strip()
                     if not text:
                         continue
-                    if only_relevant and not pattern.search(text):
+                    relevant, hits = is_relevant(text, level)
+                    if not relevant:
                         result["skipped"] += 1
                         continue
+                    fingerprint = " ".join(text.lower().split())
+                    if fingerprint in seen:
+                        result["duplicates"] += 1
+                        continue
+                    seen.add(fingerprint)
                     result["messages"].append({
                         "date": m.date.isoformat(),
                         "text": text,
                         "link": message_link(entity, m.id),
+                        "hits": hits,
                     })
                 result["messages"].reverse()
             except errors.FloodWaitError as e:
@@ -372,7 +368,7 @@ class Telegram:
         report = {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "hours": hours,
-            "only_relevant": only_relevant,
+            "filter": level,
             "chats": chats,
         }
         EXPORTS.mkdir(parents=True, exist_ok=True)
@@ -471,8 +467,8 @@ class Handler(BaseHTTPRequestHandler):
                 config["api_hash"] = str(body["api_hash"]).strip()
             if "hours" in body:
                 config["hours"] = max(1, min(int(body["hours"]), 168))
-            if "only_relevant" in body:
-                config["only_relevant"] = bool(body["only_relevant"])
+            if body.get("filter") in LEVELS:
+                config["filter"] = body["filter"]
             with config_lock:
                 save_config(config)
             return {"config": public_config(config), "status": telegram.run(telegram.status(config))}
