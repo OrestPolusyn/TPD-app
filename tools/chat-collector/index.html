@@ -78,7 +78,7 @@
       <button class="primary" id="sendCode">Надіслати код</button>
     </div>
     <div id="codeRow" hidden>
-      <p style="margin:0 0 8px">Код надіслано на <b id="codePhone"></b> — він у застосунку Telegram на телефоні, у чаті <b>«Telegram»</b> (не SMS).</p>
+      <p style="margin:0 0 8px">Код для <b id="codePhone"></b> надіслано <b id="codeVia"></b>.</p>
       <div class="row">
         <input type="text" id="code" placeholder="Код із Telegram" inputmode="numeric" autocomplete="one-time-code">
         <button class="primary" id="verifyCode">Увійти</button>
@@ -181,7 +181,8 @@ function render() {
   $("phoneRow").hidden = s !== "needs_login";
   $("codeRow").hidden = s !== "needs_code";
   $("passwordRow").hidden = s !== "needs_password";
-  $("codePhone").textContent = state.status.phone || "ваш номер";
+  $("codePhone").textContent = state.status.phone || "вашого номера";
+  $("codeVia").textContent = state.status.via || "у застосунок Telegram (службовий чат «Telegram»), не SMS";
   if (state.config.api_id) $("apiId").value = state.config.api_id;
   $("me").textContent = state.status.me ? `Увійшли як ${state.status.me}` : "";
   $("hours").value = String(state.config.hours || 24);

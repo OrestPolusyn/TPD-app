@@ -131,6 +131,22 @@ def keyword_pattern(keywords: list[str]) -> re.Pattern:
     return re.compile(r"(?<!\w)(" + "|".join(re.escape(s) for s in stems) + ")", re.I)
 
 
+def code_destination(sent_type) -> str:
+    """Where Telegram says it sent the login code, in words for the page."""
+    name = type(sent_type).__name__
+    if name == "SentCodeTypeApp":
+        return "у застосунок Telegram (службовий чат «Telegram» — на телефоні та в Telegram Desktop), не SMS"
+    if name == "SentCodeTypeEmailCode":
+        return f"на вашу пошту {getattr(sent_type, 'email_pattern', '')}".strip()
+    if name == "SentCodeTypeSetUpEmailRequired":
+        return "Telegram вимагає спершу привʼязати e-mail для входу: Налаштування → Конфіденційність → Пошта для входу — і спробуйте знову"
+    if name in ("SentCodeTypeCall", "SentCodeTypeFlashCall", "SentCodeTypeMissedCall"):
+        return "дзвінком на ваш номер (код — останні цифри номера, що дзвонить, або продиктують)"
+    if name == "SentCodeTypeFragmentSms":
+        return "через Fragment (fragment.com) — для анонімних номерів"
+    return "SMS на ваш номер"
+
+
 def message_link(entity, message_id: int) -> str:
     username = getattr(entity, "username", None)
     if username:
@@ -153,6 +169,7 @@ class Telegram:
         self.client_key: tuple | None = None
         self.phone: str | None = None
         self.phone_code_hash: str | None = None
+        self.code_via: str | None = None
         self.dialogs_loaded = False
 
     def run(self, coro, timeout: float = 900):
@@ -181,7 +198,7 @@ class Telegram:
             # A code already went out: ask for it, never for the number again —
             # a second "send" asks Telegram to resend, which it often refuses.
             if self.phone_code_hash:
-                return {"state": "needs_code", "phone": self.phone}
+                return {"state": "needs_code", "phone": self.phone, "via": self.code_via}
             return {"state": "needs_login"}
         me = await client.get_me()
         return {"state": "ready", "me": " ".join(filter(None, [me.first_name, me.last_name])) or me.username or ""}
@@ -194,16 +211,17 @@ class Telegram:
             # Telegram will not send yet another code, but the one it already
             # sent (to the "Telegram" chat in the app) is still good.
             if self.phone_code_hash and self.phone == phone:
-                return {"state": "needs_code", "phone": phone, "note": "already_sent"}
+                return {"state": "needs_code", "phone": phone, "via": self.code_via, "note": "already_sent"}
             raise
         self.phone, self.phone_code_hash = phone, sent.phone_code_hash
-        return {"state": "needs_code", "phone": phone}
+        self.code_via = code_destination(sent.type)
+        return {"state": "needs_code", "phone": phone, "via": self.code_via}
 
     async def reset_login(self, config: dict) -> dict:
         """Forget a pending code, to enter another number or start over."""
         client = await self._client(config)
         client._phone_code_hash.clear()  # Telethon's own cache: next send is a fresh one
-        self.phone = self.phone_code_hash = None
+        self.phone = self.phone_code_hash = self.code_via = None
         return {"state": "needs_login"}
 
     async def verify_code(self, config: dict, code: str) -> dict:
