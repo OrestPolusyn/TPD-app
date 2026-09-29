@@ -77,9 +77,13 @@
       <input type="tel" id="phone" placeholder="Номер телефону, напр. +34600111222">
       <button class="primary" id="sendCode">Надіслати код</button>
     </div>
-    <div class="row" id="codeRow" hidden>
-      <input type="text" id="code" placeholder="Код із Telegram" inputmode="numeric" autocomplete="one-time-code">
-      <button class="primary" id="verifyCode">Увійти</button>
+    <div id="codeRow" hidden>
+      <p style="margin:0 0 8px">Код надіслано на <b id="codePhone"></b> — він у застосунку Telegram на телефоні, у чаті <b>«Telegram»</b> (не SMS).</p>
+      <div class="row">
+        <input type="text" id="code" placeholder="Код із Telegram" inputmode="numeric" autocomplete="one-time-code">
+        <button class="primary" id="verifyCode">Увійти</button>
+      </div>
+      <p class="hint"><button class="link" id="resetLogin" style="color:var(--muted);padding:0">Інший номер / почати спочатку</button></p>
     </div>
     <div class="row" id="passwordRow" hidden>
       <input type="password" id="password" placeholder="Пароль двоетапної перевірки">
@@ -177,6 +181,7 @@ function render() {
   $("phoneRow").hidden = s !== "needs_login";
   $("codeRow").hidden = s !== "needs_code";
   $("passwordRow").hidden = s !== "needs_password";
+  $("codePhone").textContent = state.status.phone || "ваш номер";
   if (state.config.api_id) $("apiId").value = state.config.api_id;
   $("me").textContent = state.status.me ? `Увійшли як ${state.status.me}` : "";
   $("hours").value = String(state.config.hours || 24);
@@ -217,6 +222,11 @@ $("sendCode").onclick = () => busy($("sendCode"), async () => {
   state.status = await api("/api/login/code", { phone: $("phone").value });
   render();
   $("code").focus();
+}, $("loginError"));
+
+$("resetLogin").onclick = () => busy($("resetLogin"), async () => {
+  state.status = await api("/api/login/reset");
+  render();
 }, $("loginError"));
 
 $("verifyCode").onclick = () => busy($("verifyCode"), async () => {

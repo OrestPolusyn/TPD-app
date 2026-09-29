@@ -176,15 +176,35 @@ class Telegram:
             return {"state": "needs_api"}
         client = await self._client(config)
         if not await client.is_user_authorized():
-            return {"state": "needs_password" if self.phone_code_hash == "password" else "needs_login"}
+            if self.phone_code_hash == "password":
+                return {"state": "needs_password"}
+            # A code already went out: ask for it, never for the number again —
+            # a second "send" asks Telegram to resend, which it often refuses.
+            if self.phone_code_hash:
+                return {"state": "needs_code", "phone": self.phone}
+            return {"state": "needs_login"}
         me = await client.get_me()
         return {"state": "ready", "me": " ".join(filter(None, [me.first_name, me.last_name])) or me.username or ""}
 
     async def send_code(self, config: dict, phone: str) -> dict:
         client = await self._client(config)
-        sent = await client.send_code_request(phone)
+        try:
+            sent = await client.send_code_request(phone)
+        except errors.SendCodeUnavailableError:
+            # Telegram will not send yet another code, but the one it already
+            # sent (to the "Telegram" chat in the app) is still good.
+            if self.phone_code_hash and self.phone == phone:
+                return {"state": "needs_code", "phone": phone, "note": "already_sent"}
+            raise
         self.phone, self.phone_code_hash = phone, sent.phone_code_hash
-        return {"state": "needs_code"}
+        return {"state": "needs_code", "phone": phone}
+
+    async def reset_login(self, config: dict) -> dict:
+        """Forget a pending code, to enter another number or start over."""
+        client = await self._client(config)
+        client._phone_code_hash.clear()  # Telethon's own cache: next send is a fresh one
+        self.phone = self.phone_code_hash = None
+        return {"state": "needs_login"}
 
     async def verify_code(self, config: dict, code: str) -> dict:
         client = await self._client(config)
@@ -352,6 +372,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(400, {"error": "Код застарів — надішліть новий"})
         except errors.PasswordHashInvalidError:
             return self._json(400, {"error": "Невірний пароль"})
+        except errors.SendCodeUnavailableError:
+            return self._json(400, {"error": "Telegram зараз не надсилає новий код. Шукайте вже надісланий код у чаті «Telegram» у застосунку на телефоні, або спробуйте через кілька годин."})
+        except errors.FloodWaitError as e:
+            return self._json(400, {"error": f"Забагато спроб. Telegram просить зачекати {e.seconds // 60 + 1} хв."})
         except errors.PhoneNumberInvalidError:
             return self._json(400, {"error": "Невірний номер телефону"})
         except errors.ApiIdInvalidError:
@@ -391,6 +415,8 @@ class Handler(BaseHTTPRequestHandler):
             return telegram.run(telegram.verify_code(config, str(body.get("code", "")).strip()))
         if path == "/api/login/password":
             return telegram.run(telegram.verify_password(config, str(body.get("password", ""))))
+        if path == "/api/login/reset":
+            return telegram.run(telegram.reset_login(config))
         if path == "/api/logout":
             return telegram.run(telegram.logout(config))
 
