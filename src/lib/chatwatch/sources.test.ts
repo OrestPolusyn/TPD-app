@@ -10,6 +10,7 @@ describe("watch_add links", () => {
     ["https://t.me/c/spain_useful/74767", { username: "spain_useful", topic: 74767 }],
     ["https://t.me/c/1234567890/55/999", { channelId: "1234567890", topic: 55 }],
     ["-1001234567890", { channelId: "1234567890", topic: null }],
+    ["-4012345678", { channelId: "4012345678", topic: null }],
   ])("reads %s", (input, expected) => {
     expect(parseSourceRef(input)).toEqual(expected);
   });

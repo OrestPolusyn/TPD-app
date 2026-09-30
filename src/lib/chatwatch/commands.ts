@@ -161,38 +161,44 @@ export async function handleChatWatchCommand(
         await say(token, chatId, "Спершу підключіть сервер: /tg_login");
         return true;
       }
-      let ref;
-      try {
-        ref = parseSourceRef(args);
-      } catch (err) {
-        const why = err instanceof SourceRefError ? err.message : "";
-        await say(
-          token,
-          chatId,
-          why === "invite"
-            ? "Це посилання-запрошення. Вступіть у групу в Telegram, а потім додайте її звичайним посиланням (t.me/назва або посилання на тему)."
-            : "Формат: <code>/watch_add t.me/spain_useful/74767</code> (група або тема) чи <code>/watch_add @назва</code>"
-        );
+      // Several links at once — one per line or space-separated — so a whole
+      // list from the desktop collector goes in one message.
+      const inputs = args.split(/\s+/).filter(Boolean);
+      if (inputs.length === 0) {
+        await say(token, chatId, "Формат: <code>/watch_add t.me/spain_useful/74767</code> (група або тема), можна кілька посилань — кожне з нового рядка.");
         return true;
       }
-      try {
-        const resolved = await withClient(session, creds, (client) => resolveSource(client, ref));
-        const { error } = await createAdminClient().from("chatwatch_sources").insert(resolved);
-        if (error) {
-          await say(token, chatId, error.code === "23505" ? "Це джерело вже є у списку." : `Не вдалося зберегти: ${esc(error.message)}`);
-          return true;
+      if (inputs.length > 1) await say(token, chatId, `Додаю ${inputs.length} джерел…`);
+      after(async () => {
+        const lines: string[] = [];
+        try {
+          await withClient(session, creds, async (client) => {
+            for (const input of inputs) {
+              let ref;
+              try {
+                ref = parseSourceRef(input);
+              } catch (err) {
+                const why = err instanceof SourceRefError ? err.message : "";
+                lines.push(`❌ ${esc(input)} — ${why === "invite" ? "посилання-запрошення: вступіть у групу й додайте її звичайним посиланням" : "не схоже на посилання Telegram"}`);
+                continue;
+              }
+              try {
+                const resolved = await resolveSource(client, ref);
+                const { error } = await createAdminClient().from("chatwatch_sources").insert(resolved);
+                if (error) lines.push(error.code === "23505" ? `• ${esc(resolved.title)} — вже є` : `❌ ${esc(resolved.title)} — ${esc(error.message)}`);
+                else lines.push(`✅ ${esc(resolved.title)}`);
+              } catch (err) {
+                const reason = errorText(err);
+                lines.push(`❌ ${esc(input)} — ${reason === "not_found" ? "не знайшов серед чатів акаунта (акаунт сервера має бути учасником)" : esc(reason)}`);
+              }
+            }
+          });
+        } catch (err) {
+          lines.push(`❌ Не вдалося підключитись до Telegram: ${esc(errorText(err))}`);
         }
-        await say(token, chatId, `✅ Додано: <b>${esc(resolved.title)}</b>\nПерший прохід візьме останні 24 години. /watch_list — список.`);
-      } catch (err) {
-        const reason = errorText(err);
-        await say(
-          token,
-          chatId,
-          reason === "not_found"
-            ? "Не знайшов цю групу серед чатів акаунта. Акаунт сервера має бути учасником групи."
-            : `Не вдалося: ${esc(reason)}`
-        );
-      }
+        lines.push("", "Перший прохід візьме останні 24 години. /watch_list — список, /watch_run — прочитати зараз.");
+        await say(token, chatId, lines.join("\n"));
+      });
       return true;
     }
 

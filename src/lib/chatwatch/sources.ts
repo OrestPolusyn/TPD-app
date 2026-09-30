@@ -26,7 +26,10 @@ export function parseSourceRef(input: string): SourceRef {
     const chat = parts[1];
     return /^\d+$/.test(chat) ? { channelId: chat, topic: topicAt(2) } : { username: chat, topic: topicAt(2) };
   }
+  // Chat ids as the desktop collector stores them: -100… for supergroups and
+  // channels, -… for small basic groups.
   if (/^-100\d+$/.test(parts[0])) return { channelId: parts[0].slice(4), topic: null };
+  if (/^-\d+$/.test(parts[0])) return { channelId: parts[0].slice(1), topic: null };
   if (!/^[A-Za-z0-9_]{4,}$/.test(parts[0])) throw new SourceRefError("not_a_link");
   return { username: parts[0], topic: topicAt(1) };
 }
