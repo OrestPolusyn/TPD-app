@@ -8,12 +8,16 @@ import { guidePostText } from "@/lib/guide";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSiteStats, formatStatsMessage } from "@/lib/stats";
 import { config } from "@/lib/config";
+import { handleChatWatchCommand } from "@/lib/chatwatch/commands";
 import messages from "../../../../../messages/uk.json";
 
 export const dynamic = "force-dynamic";
+// The server's Telegram login (/tg_login) and /watch_run finish in after(),
+// within this route's time limit.
+export const maxDuration = 60;
 
 interface AdminUpdate {
-  message?: { chat: { id: number }; text?: string };
+  message?: { chat: { id: number }; message_id?: number; text?: string };
   callback_query?: {
     id: string;
     from: { id: number };
@@ -56,7 +60,12 @@ export async function POST(request: NextRequest) {
 
 async function handleMessage(token: string, owner: string | null, message: NonNullable<AdminUpdate["message"]>) {
   const chatId = message.chat.id;
-  const command = (message.text ?? "").trim().split(/\s+/)[0].split("@")[0];
+  const text = (message.text ?? "").trim();
+  const firstWord = text.split(/\s+/)[0];
+  const command = firstWord.split("@")[0];
+  const args = text.slice(firstWord.length).trim();
+
+  if (owner === String(chatId) && (await handleChatWatchCommand(token, chatId, message.message_id, command, args))) return;
 
   if (command === "/start") {
     await callTelegram(token, "sendMessage", {

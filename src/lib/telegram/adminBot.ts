@@ -53,6 +53,10 @@ export function setAdminCommands(token: string, owner: string) {
       { command: "stats", description: t.adminCommandStats },
       { command: "post_guide", description: t.adminCommandPostGuide },
       { command: "refresh_posts", description: t.adminCommandRefreshPosts },
+      { command: "watch_run", description: "Прочитати групи зараз (дайджест про захист)" },
+      { command: "watch_list", description: "Групи, які читає сервер" },
+      { command: "watch_add", description: "Додати групу: /watch_add посилання" },
+      { command: "tg_login", description: "Підключити Telegram сервера (QR)" },
     ],
     scope: { type: "chat", chat_id: owner },
   });

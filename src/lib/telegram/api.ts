@@ -24,6 +24,21 @@ export async function callTelegram<T>(
   return (await res.json()) as TelegramApiResult<T>;
 }
 
+/** sendPhoto with an image made on the server (the QR login code). Multipart, not JSON. */
+export async function sendPhoto(
+  token: string,
+  chatId: number | string,
+  png: Buffer,
+  caption?: string
+): Promise<TelegramApiResult<{ message_id: number }>> {
+  const form = new FormData();
+  form.append("chat_id", String(chatId));
+  if (caption) form.append("caption", caption);
+  form.append("photo", new Blob([new Uint8Array(png)], { type: "image/png" }), "qr.png");
+  const res = await fetch(`${API}${token}/sendPhoto`, { method: "POST", body: form, cache: "no-store" });
+  return (await res.json()) as TelegramApiResult<{ message_id: number }>;
+}
+
 export interface BotIdentity {
   id: number;
   username: string;
