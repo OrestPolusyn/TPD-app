@@ -1,5 +1,5 @@
 {
- "_comment": "Relevance rules for 'is this chat message about temporary protection?'. Shared by tools/chat-collector (Python) and the server chat watch (src/lib/chatwatch). Stems match at the start of a word; \\w means any letter or digit in both. Each group counts once per message. Cities add 1 point and group the server digest.",
+ "_comment": "Relevance rules for 'is this chat message about temporary protection?'. Shared by tools/chat-collector (Python) and the server chat watch (src/lib/chatwatch). Stems match at the start of a word; \\w means any letter or digit in both. Each group counts once per message. Cities add 1 point and group the server digest. A message must also say what happened or what was asked for (outcomes/requirements); a question with no outcome is dropped; anything matching 'block' (selling citas) is dropped.",
  "levels": {
   "off": [
    null,
@@ -456,5 +456,74 @@
    "хіхон",
    "gij[oó]n"
   ]
- }
+ },
+ "block": [
+  "ситолов",
+  "сітолов",
+  "моніторинг\\w*\\s+сайт",
+  "мониторинг\\w*\\s+сайт",
+  "вартост\\w*\\s+послуг",
+  "вартість\\s+послуг",
+  "стоимост\\w*\\s+услуг",
+  "cita[\\s_]*master",
+  "сита\\s*мастер",
+  "ситамастер",
+  "сітамастер",
+  "заказал\\w*\\s+услуг",
+  "замовил\\w*\\s+послуг",
+  "поможем\\s+(?:поймать|записат)",
+  "допоможемо\\s+(?:зловити|записат)",
+  "ловл\\w*\\s+(?:сит|сіт|записей|записів)",
+  "без\\s+передплат",
+  "договор\\w*\\s+доручення"
+ ],
+ "outcomes": [
+  "дал[аио]?(?!\\w)",
+  "отримал",
+  "отримав",
+  "получил",
+  "прийняли",
+  "прийняв",
+  "приняли",
+  "принял",
+  "відмовил",
+  "отказал",
+  "відмова",
+  "оформил",
+  "оформив",
+  "подал[аи]?(?:сь|ся)",
+  "подав(?:ся|ла(?:ся|сь))",
+  "подавал",
+  "прошл[иа]",
+  "пройшл"
+ ],
+ "requirements": [
+  "просил",
+  "просять",
+  "просят",
+  "просит",
+  "вимагал",
+  "вимага[юєє]",
+  "требу[юе]т",
+  "требовал",
+  "питал",
+  "спрашивал",
+  "перевіря",
+  "проверя",
+  "нужен",
+  "нужна",
+  "потрібн",
+  "достатньо",
+  "достаточно",
+  "не\\s+при[йн]?ма",
+  "не\\s+признают",
+  "не\\s+визнають",
+  "смотрят",
+  "дивлят",
+  "подходит",
+  "підходить",
+  "не\\s+принима",
+  "сказал",
+  "кажуть"
+ ]
 }

@@ -29,6 +29,22 @@ _COMPILED.append((_RULES["cityPoints"], _compile([s for stems in _RULES["cities"
 
 LEVELS = {name: (v[0], v[1]) for name, v in _RULES["levels"].items()}
 
+# What makes a message worth publishing: someone got protection or was
+# refused, or was asked for something. Questions and cita-selling are not.
+_BLOCK = _compile(_RULES["block"])
+_OUTCOME = _compile(_RULES["outcomes"])
+_REQUIREMENT = _compile(_RULES["requirements"])
+
+
+def is_report(text: str) -> bool:
+    """Says what happened or what was required — not a question, not an ad."""
+    if _BLOCK.search(text):
+        return False
+    outcome = bool(_OUTCOME.search(text))
+    if "?" in text and not outcome:
+        return False
+    return outcome or bool(_REQUIREMENT.search(text))
+
 
 def score(text: str) -> tuple[int, bool, list[str]]:
     """(score, has a core term, the words that matched — for highlighting)."""
@@ -52,6 +68,6 @@ def is_relevant(text: str, level: str = "normal") -> tuple[bool, list[str]]:
     total, core, hits = score(text)
     if minimum is None:
         return True, hits
-    if len(text.strip()) < 20:
+    if len(text.strip()) < 20 or not is_report(text):
         return False, hits
     return total >= minimum and (core or not needs_core), hits

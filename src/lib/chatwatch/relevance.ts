@@ -36,6 +36,25 @@ const CITY_PATTERNS: { city: string; pattern: RegExp }[] = Object.entries(rules.
 
 const LEVELS = rules.levels as Record<RelevanceLevel, [number | null, boolean]>;
 
+// What makes a message worth publishing: someone got protection or was
+// refused, or was asked for something. Questions and cita-selling are not.
+const BLOCK = compile(rules.block);
+const OUTCOME = compile(rules.outcomes);
+const REQUIREMENT = compile(rules.requirements);
+
+const has = (pattern: RegExp, text: string) => {
+  pattern.lastIndex = 0;
+  return pattern.test(text);
+};
+
+/** Says what happened or what was required — not a question, not an ad. */
+export function isReport(text: string): boolean {
+  if (has(BLOCK, text)) return false;
+  const outcome = has(OUTCOME, text);
+  if (text.includes("?") && !outcome) return false;
+  return outcome || has(REQUIREMENT, text);
+}
+
 export function score(text: string): { total: number; core: boolean; hits: string[] } {
   let total = 0;
   let core = false;
@@ -53,7 +72,7 @@ export function score(text: string): { total: number; core: boolean; hits: strin
 export function isRelevant(text: string, level: RelevanceLevel = "normal"): boolean {
   const [minimum, needsCore] = LEVELS[level] ?? LEVELS.normal;
   if (minimum === null) return true;
-  if (text.trim().length < 20) return false;
+  if (text.trim().length < 20 || !isReport(text)) return false;
   const { total, core } = score(text);
   return total >= minimum && (core || !needsCore);
 }

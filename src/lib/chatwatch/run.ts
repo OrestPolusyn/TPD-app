@@ -12,7 +12,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { callTelegram } from "@/lib/telegram/api";
 import { getAdminBotToken, getModeratorChatId } from "@/lib/telegram/settings";
 import { getApiCredentials, getSession, inputPeer, withClient, type SourcePeer } from "@/lib/chatwatch/telegram";
-import { isRelevant } from "@/lib/chatwatch/relevance";
+import { citiesIn, isRelevant } from "@/lib/chatwatch/relevance";
 import { formatDigest, type FoundMessage } from "@/lib/chatwatch/digest";
 
 interface SourceRow extends SourcePeer {
@@ -128,7 +128,21 @@ export async function runChatWatch(options: { notifyWhenEmpty?: boolean } = {}):
       .in("fingerprint", unique.map((f) => f.fp));
     const seenSet = new Set((seen ?? []).map((s) => s.fingerprint as string));
     fresh = unique.filter((f) => !seenSet.has(f.fp));
-    if (fresh.length > 0) await admin.from("chatwatch_seen").upsert(fresh.map((f) => ({ fingerprint: f.fp })));
+    if (fresh.length > 0) {
+      await admin.from("chatwatch_seen").upsert(fresh.map((f) => ({ fingerprint: f.fp })));
+      // Kept for the scheduled Claude session that turns them into drafts
+      // (see docs in supabase/migrations/0033).
+      const { error } = await admin.from("chatwatch_found").insert(
+        fresh.map((f) => ({
+          source_title: f.sourceTitle,
+          msg_date: f.date.toISOString(),
+          text: f.text,
+          link: f.link,
+          cities: citiesIn(f.text),
+        }))
+      );
+      if (error) console.error("chat watch: found messages not stored:", error.message);
+    }
   }
   await admin
     .from("chatwatch_seen")

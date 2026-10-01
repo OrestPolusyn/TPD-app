@@ -94,6 +94,8 @@ export interface ChangePayload {
    * deleted from the channel and should go out again in the new format.
    */
   channel_only?: boolean;
+  /** t.me links to the chat messages a draft was made from (admin view only). */
+  source_links?: string[];
 }
 
 /** One button under an admin notice; `variant` picks what the action does. */
@@ -453,6 +455,11 @@ export async function describeDraft(d: DraftRow): Promise<string | null> {
   if (change.retire_note_ids?.length && !change.channel_only) {
     const { data: old } = await admin.from("community_notes").select("body").in("id", change.retire_note_ids);
     if (old?.length) lines.push("", `<b>${esc(t.draftReplaces)}:</b>`, ...old.map((n) => `• <s>${esc(n.body as string)}</s>`));
+  }
+  // Where in the chats it came from — for the owner only, never posted.
+  const links = (change.source_links ?? []).filter((l) => /^https:\/\/t\.me\//.test(l)).slice(0, 5);
+  if (links.length > 0) {
+    lines.push("", `🔗 Джерела: ${links.map((l, i) => `<a href="${esc(l)}">${i + 1}</a>`).join(" · ")}`);
   }
   return lines.join("\n");
 }
