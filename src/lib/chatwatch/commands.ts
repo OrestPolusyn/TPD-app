@@ -215,7 +215,7 @@ export async function handleChatWatchCommand(
         lines.push(`${s.id}. ${esc(s.title as string)} — ${when}${s.last_error ? ` ⚠️ ${esc(s.last_error as string)}` : ""}`);
       }
       if ((data ?? []).length === 0) lines.push("Поки порожньо. <code>/watch_add посилання</code>");
-      lines.push("", "Прибрати: <code>/watch_remove номер</code> · прочитати зараз: /watch_run\nАвтоматично — щодня о 9:00 і 19:00 (Мадрид).");
+      lines.push("", "Прибрати: <code>/watch_remove номер</code> · прочитати зараз: /watch_run\nАвтоматично — щодня о 12:00 і 22:00 (Мадрид).");
       await say(token, chatId, lines.join("\n"));
       return true;
     }

@@ -1,10 +1,11 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { getDispatchSecret } from "@/lib/telegram/settings";
-import { runChatWatch } from "@/lib/chatwatch/run";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { recordChannelMembers } from "@/lib/channelStats";
+import { madridDate } from "@/lib/stats";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
 
 function sameSecret(given: string | null, expected: string): boolean {
   if (!given) return false;
@@ -14,19 +15,15 @@ function sameSecret(given: string | null, expected: string): boolean {
 }
 
 /**
- * The scheduled chat watch: the database's pg_cron calls this at 12:00 and
- * 22:00 Madrid time (migration 0036) with the shared dispatch secret. /watch_run in the admin
- * bot does the same thing on demand.
+ * Records how many people follow the updates channel today. Called by the
+ * database's schedule next to the chat watch (migration 0036), with the
+ * shared dispatch secret; the owner's /stats records it too.
  */
 export async function POST(request: NextRequest) {
   const secret = await getDispatchSecret();
   if (!secret || !sameSecret(request.headers.get("x-dispatch-secret"), secret)) {
     return NextResponse.json({ ok: false }, { status: 403 });
   }
-  try {
-    return NextResponse.json({ ok: true, ...(await runChatWatch()) });
-  } catch (err) {
-    console.error("chat watch failed:", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
-  }
+  const members = await recordChannelMembers(createAdminClient(), madridDate(new Date()));
+  return NextResponse.json({ ok: members !== null, members });
 }

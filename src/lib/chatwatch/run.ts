@@ -2,7 +2,8 @@
  * One pass over the watched groups: read what is new since last time, keep
  * what is about temporary protection, send it to the owner as a digest.
  *
- * Runs twice a day from the database's schedule (0032) and on /watch_run.
+ * Runs twice a day from the database's schedule (12:00 and 22:00 Madrid,
+ * 0036) and on /watch_run.
  * Nothing goes to the site or the channel from here — the digest is for the
  * owner to read and act on.
  */
@@ -14,6 +15,7 @@ import { getAdminBotToken, getModeratorChatId } from "@/lib/telegram/settings";
 import { getApiCredentials, getSession, inputPeer, withClient, type SourcePeer } from "@/lib/chatwatch/telegram";
 import { citiesIn, isRelevant } from "@/lib/chatwatch/relevance";
 import { formatDigest, type FoundMessage } from "@/lib/chatwatch/digest";
+import { collectPostViews } from "@/lib/channelStats";
 
 interface SourceRow extends SourcePeer {
   id: number;
@@ -107,6 +109,11 @@ export async function runChatWatch(options: { notifyWhenEmpty?: boolean } = {}):
           errors.push({ title: source.title, error: message });
           await admin.from("chatwatch_sources").update({ last_run_at: new Date().toISOString(), last_error: message }).eq("id", source.id);
         }
+      }
+      // While logged in anyway: how many people saw each channel post, for
+      // the owner's statistics. Never at the cost of the digest.
+      if (Date.now() - started < TIME_BUDGET_MS) {
+        await collectPostViews(admin, client).catch((err) => console.error("channel views not read:", err));
       }
     });
   } catch (err) {

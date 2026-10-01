@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getSiteStats, madridDate, type SiteStats } from "@/lib/stats";
+import { getSiteStats, madridDate, percent, signed, trend, type SiteStats } from "@/lib/stats";
 import { formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -15,13 +15,21 @@ function shortDate(iso: string): string {
   return `${d}.${m}`;
 }
 
-function Tile({ label, value, accent = false }: { label: string; value: number; accent?: boolean }) {
+function Tile({ label, value, note, accent = false }: { label: string; value: number | string; note?: string; accent?: boolean }) {
   return (
     <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-sm)]">
       <p className="text-xs text-[var(--muted)]">{label}</p>
       <p className={`mt-1 text-2xl font-semibold tabular-nums ${accent ? "text-[var(--accent)]" : ""}`}>{value}</p>
+      {note ? <p className="mt-0.5 text-xs text-[var(--muted)]">{note}</p> : null}
     </div>
   );
+}
+
+/** "+12%" / "−5%" / "" when there is nothing to compare with. */
+function trendNote(after: number, before: number, label: (pct: string) => string): string | undefined {
+  const pct = trend(after, before);
+  if (pct === null) return undefined;
+  return label(`${pct > 0 ? "+" : pct < 0 ? "−" : ""}${Math.abs(pct)}%`);
 }
 
 /**
@@ -158,6 +166,71 @@ export default async function AdminStatsPage() {
             </ul>
           </div>
         ) : null}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <div>
+          <h2 className="text-sm font-medium">📢 {t("channelTitle")}</h2>
+          <p className="text-xs text-[var(--muted)]">{t("channelHint")}</p>
+        </div>
+        {stats.channel.members === null ? (
+          <p className="text-sm text-[var(--muted)]">{t("channelUnknown")}</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Tile label={t("channelMembers")} value={stats.channel.members} accent />
+            <Tile
+              label={t("channel7")}
+              value={signed(stats.channel.change7)}
+              note={stats.channel.change7 === null && stats.channel.since ? t("channelSince", { date: formatDate(stats.channel.since) }) : undefined}
+            />
+            <Tile label={t("channel30")} value={signed(stats.channel.change30)} />
+            <Tile label={t("channelPosts")} value={stats.channel.posts} note={t("channelPosts7", { n: stats.channel.posts7 })} />
+            <Tile label={t("channelVotes")} value={stats.channel.votes} />
+            <Tile
+              label={t("channelViews")}
+              value={stats.channel.views ? stats.channel.views.perPost : "—"}
+              note={stats.channel.views ? t("channelViewsTotal", { total: stats.channel.views.total }) : t("channelViewsLater")}
+            />
+          </div>
+        )}
+        {stats.channel.since ? <DailyBars title={t("channelChartTitle")} data={stats.channel.byDay} /> : null}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <div>
+          <h2 className="text-sm font-medium">📈 {t("successTitle")}</h2>
+          <p className="text-xs text-[var(--muted)]">{t("successHint")}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Tile
+            label={t("successVisitors")}
+            value={stats.visits.last7}
+            note={trendNote(stats.visits.last7, stats.success.visitorsPrev7, (pct) => t("successVsWeek", { pct, before: stats.success.visitorsPrev7 }))}
+          />
+          <Tile
+            label={t("successSignups")}
+            value={stats.users.last7}
+            note={trendNote(stats.users.last7, stats.success.signupsPrev7, (pct) => t("successVsWeek", { pct, before: stats.success.signupsPrev7 }))}
+          />
+          <Tile label={t("successConversion")} value={`${percent(stats.users.last30, stats.visits.last30) ?? "—"}%`} note={t("successConversionNote")} />
+          <Tile
+            label={t("successGranted")}
+            value={`${stats.success.outcomes.protection_granted ?? 0} / ${Object.values(stats.success.outcomes).reduce((a, b) => a + b, 0)}`}
+            note={t("successGrantedNote")}
+          />
+          <Tile
+            label={t("successReporters")}
+            value={stats.success.reporters}
+            note={t("successReportersNote", { pct: percent(stats.success.reporters, stats.users.total) ?? 0 })}
+          />
+          <Tile
+            label={t("successOffices")}
+            value={`${stats.success.offices.covered} / ${stats.success.offices.total}`}
+            note={t("successFresh", { n: stats.success.offices.fresh14 })}
+          />
+          <Tile label={t("successFromChats")} value={stats.success.approvedFromChats} />
+          <Tile label={t("successReaders")} value={stats.success.readerInput} note={t("successReadersNote")} />
+        </div>
       </section>
 
       <h2 className="-mb-2 text-sm font-medium">{t("usersTitle")}</h2>

@@ -9,6 +9,7 @@ import { FEED_OFFICE_UPDATES, FEED_RULE_CHANGES } from "@/lib/data/feedCount";
 import { OutcomeLabel } from "@/components/shared/OutcomeLabel";
 import { Avatar } from "@/components/shared/Avatar";
 import { MarkFeedSeen } from "@/components/shared/MarkFeedSeen";
+import { ChannelNews } from "@/components/shared/ChannelNews";
 import { formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +39,8 @@ export default async function FeedPage() {
         <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">{t("subtitle")}</p>
       </div>
+
+      <ChannelNews />
 
       {ruleChanges.length > 0 ? (
         <section className="rounded-[var(--radius-md)] border border-[var(--highlight-border)] bg-[var(--highlight-bg)] p-4 text-sm">

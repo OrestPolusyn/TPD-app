@@ -9,6 +9,7 @@ import { Card } from "@/components/shared/Card";
 import { LocationsMapLoader } from "@/components/home/LocationsMapLoader";
 import { ClientErrorBoundary } from "@/components/shared/ClientErrorBoundary";
 import { LoadingIndicator } from "@/components/shared/LoadingIndicator";
+import { ChannelNews } from "@/components/shared/ChannelNews";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,8 @@ export default async function HomePage() {
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">{t("subtitle")}</p>
       </div>
+
+      <ChannelNews />
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <div className="flex min-h-[320px] flex-col gap-2">
