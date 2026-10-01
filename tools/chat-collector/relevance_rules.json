@@ -1,5 +1,5 @@
 {
- "_comment": "Relevance rules for 'is this chat message about temporary protection?'. Shared by tools/chat-collector (Python) and the server chat watch (src/lib/chatwatch). Stems match at the start of a word; \\w means any letter or digit in both. Each group counts once per message. Cities add 1 point and group the server digest. A message must also say what happened or what was asked for (outcomes/requirements); a question with no outcome is dropped; anything matching 'block' (selling citas) is dropped.",
+ "_comment": "Relevance rules for 'is this chat message about temporary protection?'. Shared by tools/chat-collector (Python) and the server chat watch (src/lib/chatwatch). Stems match at the start of a word; \\w means any letter or digit in both. Each group counts once per message. Cities add 1 point and group the server digest. A message must also say what happened or what was asked for (outcomes/requirements); outcomes and requirements count only in statements, not in a sentence ending in '?' or opening like a question (questionStarts); a question with no outcome is dropped; other countries, Schengen-stay explainers and legal-service ads are blocked too; anything matching 'block' (selling citas) is dropped.",
  "levels": {
   "off": [
    null,
@@ -363,7 +363,9 @@
    "майорк",
    "мальорк",
    "mallorca",
-   "palma"
+   "palma",
+   "майорц",
+   "мальорц"
   ],
   "Луго": [
    "луго",
@@ -455,6 +457,14 @@
    "хихон",
    "хіхон",
    "gij[oó]n"
+  ],
+  "Гвадалахара": [
+   "гвадалахар",
+   "guadalajar"
+  ],
+  "Сьюдад-Реаль": [
+   "сьюдад[\\s-]*реал",
+   "ciudad\\s+real"
   ]
  },
  "block": [
@@ -475,7 +485,24 @@
   "допоможемо\\s+(?:зловити|записат)",
   "ловл\\w*\\s+(?:сит|сіт|записей|записів)",
   "без\\s+передплат",
-  "договор\\w*\\s+доручення"
+  "договор\\w*\\s+доручення",
+  "німеччин",
+  "германи",
+  "deutschland",
+  "кельн",
+  "кёльн",
+  "k[öo]ln",
+  "берлін",
+  "берлин",
+  "польщ",
+  "польш",
+  "ausl[äa]nderbeh",
+  "дп\\s+[«\"]?документ",
+  "90\\s*/\\s*180",
+  "183\\s+дн",
+  "адвокат",
+  "юридичн\\w*\\s+допомог",
+  "юридическ\\w*\\s+помощ"
  ],
  "outcomes": [
   "дал[аио]?(?!\\w)",
@@ -525,5 +552,19 @@
   "не\\s+принима",
   "сказал",
   "кажуть"
+ ],
+ "questionStarts": [
+  "подскаж",
+  "підкаж",
+  "подкаж",
+  "скажіть",
+  "скажите",
+  "кто\\s",
+  "хто\\s",
+  "чи\\s",
+  "может\\s+кто",
+  "можливо\\s+хтось",
+  "есть\\s+кто",
+  "є\\s+хтось"
  ]
 }

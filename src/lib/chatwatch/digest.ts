@@ -85,3 +85,26 @@ export function formatDigest({ found, sources, hidden, errors, now }: DigestInpu
   out.push(current);
   return out;
 }
+
+/**
+ * What the owner gets after a run: not the messages themselves — those are
+ * turned into ready drafts (comment or change, with buttons) by the
+ * scheduled Claude pass a few minutes later — just how many there were.
+ * The raw list stays one command away (/watch_raw).
+ */
+export function formatRunNotice({ found, sources, hidden, errors, now }: DigestInput): string {
+  const lines = [`🗞 <b>Чати про захист</b> · ${esc(madridTime(now, true))}`];
+  if (found.length > 0) {
+    lines.push(
+      `Нових повідомлень: ${found.length} · груп: ${sources} · сховано як не про захист: ${hidden}`,
+      "Готові до публікації чернетки (коментар або зміна, з кнопками) прийдуть сюди після обробки — о 12:05 або 22:05.",
+      "Сирий список: /watch_raw"
+    );
+  } else {
+    lines.push(`Нового про захист немає · перевірено груп: ${sources}`);
+  }
+  if (errors.length > 0) {
+    lines.push("", `⚠️ <b>Не вдалося прочитати</b>`, ...errors.map((e) => `• ${esc(e.title)}: ${esc(e.error)}`));
+  }
+  return lines.join("\n");
+}

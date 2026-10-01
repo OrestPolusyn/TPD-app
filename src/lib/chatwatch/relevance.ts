@@ -41,6 +41,20 @@ const LEVELS = rules.levels as Record<RelevanceLevel, [number | null, boolean]>;
 const BLOCK = compile(rules.block);
 const OUTCOME = compile(rules.outcomes);
 const REQUIREMENT = compile(rules.requirements);
+const QUESTION_START = new RegExp(`^[^\\p{L}]*(?:${rules.questionStarts.map((q) => q.replace(/\\w/g, WORD)).join("|")})`, "iu");
+
+/**
+ * The sentences that state something: not ending in "?" and not opening
+ * like a question ("Подскажите, кто получил…" asks even without one).
+ * "…щоб його прийняли в поліції?" names an outcome but reports nothing.
+ */
+export function statements(text: string): string {
+  return text
+    .split(/(?<=[.!?\n])/u)
+    .map((s) => s.trim())
+    .filter((s) => s && !s.endsWith("?") && !QUESTION_START.test(s))
+    .join("\n");
+}
 
 const has = (pattern: RegExp, text: string) => {
   pattern.lastIndex = 0;
@@ -50,9 +64,10 @@ const has = (pattern: RegExp, text: string) => {
 /** Says what happened or what was required — not a question, not an ad. */
 export function isReport(text: string): boolean {
   if (has(BLOCK, text)) return false;
-  const outcome = has(OUTCOME, text);
+  const stated = statements(text);
+  const outcome = has(OUTCOME, stated);
   if (text.includes("?") && !outcome) return false;
-  return outcome || has(REQUIREMENT, text);
+  return outcome || has(REQUIREMENT, stated);
 }
 
 export function score(text: string): { total: number; core: boolean; hits: string[] } {

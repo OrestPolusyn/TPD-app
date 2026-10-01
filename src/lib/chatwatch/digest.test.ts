@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDigest, groupByCity, type FoundMessage } from "./digest";
+import { formatDigest, formatRunNotice, groupByCity, type FoundMessage } from "./digest";
 
 const at = (h: number) => new Date(Date.UTC(2026, 8, 29, h, 0));
 const msg = (text: string, h = 8): FoundMessage => ({
@@ -46,5 +46,20 @@ describe("chat digest", () => {
     const parts = formatDigest({ found, sources: 1, hidden: 0, errors: [], now: at(17) });
     expect(parts.length).toBeGreaterThan(1);
     for (const part of parts) expect(part.length).toBeLessThanOrEqual(4096);
+  });
+});
+
+describe("run notice", () => {
+  it("counts what was found instead of pasting it, and points to the raw list", () => {
+    const text = formatRunNotice({ found: [msg("Бильбао - справку не признают"), msg("Луго - дали")], sources: 17, hidden: 240, errors: [], now: at(20) });
+    expect(text).toContain("Нових повідомлень: 2 · груп: 17");
+    expect(text).toContain("/watch_raw");
+    expect(text).not.toContain("Бильбао");
+  });
+
+  it("still reports groups it could not read", () => {
+    const text = formatRunNotice({ found: [], sources: 3, hidden: 0, errors: [{ title: "Аліканте", error: "CHANNEL_PRIVATE" }], now: at(20) });
+    expect(text).toContain("Нового про захист немає");
+    expect(text).toContain("• Аліканте: CHANNEL_PRIVATE");
   });
 });

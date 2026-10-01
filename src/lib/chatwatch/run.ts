@@ -1,11 +1,11 @@
 /**
  * One pass over the watched groups: read what is new since last time, keep
- * what is about temporary protection, send it to the owner as a digest.
+ * what is about temporary protection, store it for the scheduled Claude pass
+ * that turns it into drafts, and tell the owner how much there was.
  *
  * Runs twice a day from the database's schedule (12:00 and 22:00 Madrid,
  * 0036) and on /watch_run.
- * Nothing goes to the site or the channel from here — the digest is for the
- * owner to read and act on.
+ * Nothing goes to the site or the channel from here.
  */
 import { createHash } from "node:crypto";
 import type { Api } from "telegram";
@@ -14,7 +14,7 @@ import { callTelegram } from "@/lib/telegram/api";
 import { getAdminBotToken, getModeratorChatId } from "@/lib/telegram/settings";
 import { getApiCredentials, getSession, inputPeer, withClient, type SourcePeer } from "@/lib/chatwatch/telegram";
 import { citiesIn, isRelevant } from "@/lib/chatwatch/relevance";
-import { formatDigest, type FoundMessage } from "@/lib/chatwatch/digest";
+import { formatRunNotice, type FoundMessage } from "@/lib/chatwatch/digest";
 import { collectPostViews } from "@/lib/channelStats";
 
 interface SourceRow extends SourcePeer {
@@ -157,7 +157,7 @@ export async function runChatWatch(options: { notifyWhenEmpty?: boolean } = {}):
     .lt("seen_at", new Date(Date.now() - SEEN_TTL_DAYS * 86_400_000).toISOString());
 
   if (fresh.length > 0 || errors.length > 0 || options.notifyWhenEmpty) {
-    await sendToOwner(formatDigest({ found: fresh, sources: sources.length, hidden, errors, now: new Date() }));
+    await sendToOwner([formatRunNotice({ found: fresh, sources: sources.length, hidden, errors, now: new Date() })]);
   }
   return { status: "done", found: fresh.length, hidden, sources: sources.length, errors: errors.length };
 }

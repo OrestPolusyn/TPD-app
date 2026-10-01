@@ -34,16 +34,25 @@ LEVELS = {name: (v[0], v[1]) for name, v in _RULES["levels"].items()}
 _BLOCK = _compile(_RULES["block"])
 _OUTCOME = _compile(_RULES["outcomes"])
 _REQUIREMENT = _compile(_RULES["requirements"])
+_QUESTION_START = re.compile(r"^[\W\d_]*(?:" + "|".join(_RULES["questionStarts"]) + ")", re.IGNORECASE | re.UNICODE)
+
+
+def statements(text: str) -> str:
+    """The sentences that state something: not ending in "?" and not opening
+    like a question ("Подскажите, кто получил…" asks even without one)."""
+    parts = (s.strip() for s in re.split(r"(?<=[.!?\n])", text))
+    return "\n".join(s for s in parts if s and not s.endswith("?") and not _QUESTION_START.search(s))
 
 
 def is_report(text: str) -> bool:
     """Says what happened or what was required — not a question, not an ad."""
     if _BLOCK.search(text):
         return False
-    outcome = bool(_OUTCOME.search(text))
+    stated = statements(text)
+    outcome = bool(_OUTCOME.search(stated))
     if "?" in text and not outcome:
         return False
-    return outcome or bool(_REQUIREMENT.search(text))
+    return outcome or bool(_REQUIREMENT.search(stated))
 
 
 def score(text: str) -> tuple[int, bool, list[str]]:

@@ -9,6 +9,7 @@
  *   /watch_list                   what is read, and how it went
  *   /watch_remove <n>             stop reading one
  *   /watch_run                    read now instead of waiting for the schedule
+ *   /watch_raw                    what the chats said in the last 24 h, unprocessed
  *
  * Login and reading take longer than a webhook should, so they run in
  * after(): Telegram gets its 200 at once and does not retry the update.
@@ -29,6 +30,7 @@ import {
 } from "@/lib/chatwatch/telegram";
 import { parseSourceRef, SourceRefError } from "@/lib/chatwatch/sources";
 import { runChatWatch } from "@/lib/chatwatch/run";
+import { formatDigest } from "@/lib/chatwatch/digest";
 
 export const CHAT_WATCH_COMMANDS = [
   "/tg_api",
@@ -39,6 +41,7 @@ export const CHAT_WATCH_COMMANDS = [
   "/watch_list",
   "/watch_remove",
   "/watch_run",
+  "/watch_raw",
 ] as const;
 
 /** Leave the webhook function (60 s) a margin to report the outcome. */
@@ -232,7 +235,7 @@ export async function handleChatWatchCommand(
     }
 
     case "/watch_run": {
-      await say(token, chatId, "Читаю групи… дайджест прийде за хвилину.");
+      await say(token, chatId, "Читаю групи… підсумок прийде за хвилину.");
       after(async () => {
         try {
           const result = await runChatWatch({ notifyWhenEmpty: true });
@@ -242,6 +245,28 @@ export async function handleChatWatchCommand(
           await say(token, chatId, `Не вдалося прочитати групи: ${esc(errorText(err))}`);
         }
       });
+      return true;
+    }
+
+    case "/watch_raw": {
+      const since = new Date(Date.now() - 24 * 3600_000).toISOString();
+      const [{ data }, { count }] = await Promise.all([
+        createAdminClient()
+          .from("chatwatch_found")
+          .select("source_title, msg_date, text, link")
+          .gte("created_at", since)
+          .order("msg_date"),
+        createAdminClient().from("chatwatch_sources").select("id", { count: "exact", head: true }).eq("enabled", true),
+      ]);
+      const found = (data ?? []).map((r) => ({
+        sourceTitle: r.source_title as string,
+        date: new Date(r.msg_date as string),
+        text: r.text as string,
+        link: r.link as string,
+      }));
+      for (const text of formatDigest({ found, sources: count ?? 0, hidden: 0, errors: [], now: new Date() })) {
+        await say(token, chatId, text);
+      }
       return true;
     }
   }
