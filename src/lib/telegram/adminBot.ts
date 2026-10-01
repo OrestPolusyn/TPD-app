@@ -86,7 +86,13 @@ export interface ChangePayload {
   detail: string;
   user_id?: string;
   source?: string;
-  kind?: "document" | "info";
+  /**
+   * "unconfirmed": a single chat report — shown as a comment at the bottom
+   * of the office's page, not on the card and not in the channel.
+   */
+  kind?: "document" | "info" | "unconfirmed";
+  /** The date the report describes (YYYY-MM-DD); today when absent. */
+  observed_on?: string;
   retire_note_ids?: string[];
   also_location_ids?: string[];
   /**
@@ -323,6 +329,10 @@ export async function performAction(actionId: number, variant: string | undefine
   if (offices[0]?.id !== location_id) return release(t.actionMissing);
 
   const today = madridDate(new Date());
+  if (change.kind === "unconfirmed") {
+    const failed = await applyChangeToSite(admin, change, today, false);
+    return failed ? release(t.actionFailed) : { text: t.actionUnconfirmedAdded, done: true };
+  }
   const asRule = variant === "r";
   if (!change.channel_only) {
     const failed = await applyChangeToSite(admin, change, today, asRule);
@@ -363,7 +373,7 @@ async function applyChangeToSite(
       kind: change.kind ?? "info",
       position: 0,
       body: clip(detail.trim(), 600),
-      observed_on: today,
+      observed_on: change.observed_on && /^\d{4}-\d{2}-\d{2}$/.test(change.observed_on) ? change.observed_on : today,
     }))
   );
   if (noteError) return true;
@@ -410,8 +420,16 @@ async function loadReportPost(admin: ReturnType<typeof createAdminClient>, repor
 }
 
 /** The keyboard for an action that already exists (drafts listed by /pending). */
-export function actionKeyboard(actionId: number, kind: string, channelSet: boolean) {
+export function actionKeyboard(actionId: number, kind: string, channelSet: boolean, payload?: unknown) {
   const t = messages.telegramBot;
+  if ((payload as ChangePayload | undefined)?.kind === "unconfirmed") {
+    return {
+      inline_keyboard: [
+        [{ text: t.acceptUnconfirmedButton, callback_data: `act:${actionId}:a` }],
+        [{ text: t.rejectButton, callback_data: `act:${actionId}:x` }],
+      ],
+    };
+  }
   if (kind === "publish_report" || kind === "publish_story") {
     return {
       inline_keyboard: [
@@ -450,8 +468,13 @@ export async function describeDraft(d: DraftRow): Promise<string | null> {
   const change = d.payload as ChangePayload;
   const offices = await loadOffices(admin, change);
   if (offices.length === 0) return null;
-  const header = change.channel_only ? t.draftRepostHeader : t.draftHeader;
-  const lines = [`<b>${esc(header)}</b>`, "", formatChangePost(offices, change.detail)];
+  const unconfirmed = change.kind === "unconfirmed";
+  const header = unconfirmed ? t.draftUnconfirmedHeader : change.channel_only ? t.draftRepostHeader : t.draftHeader;
+  // A comment is not a channel post: show the office and the text as is.
+  const body = unconfirmed
+    ? [...officesHeading(offices), "", `${change.observed_on ? `<b>${esc(formatDate(change.observed_on))}:</b> ` : ""}${esc(change.detail.trim())}`].join("\n")
+    : formatChangePost(offices, change.detail);
+  const lines = [`<b>${esc(header)}</b>`, "", body];
   if (change.retire_note_ids?.length && !change.channel_only) {
     const { data: old } = await admin.from("community_notes").select("body").in("id", change.retire_note_ids);
     if (old?.length) lines.push("", `<b>${esc(t.draftReplaces)}:</b>`, ...old.map((n) => `• <s>${esc(n.body as string)}</s>`));
@@ -465,7 +488,7 @@ export async function describeDraft(d: DraftRow): Promise<string | null> {
 }
 
 /** Drafts still waiting for the owner, for /pending. */
-export async function describeDrafts(): Promise<{ id: number; kind: string; text: string }[]> {
+export async function describeDrafts(): Promise<{ id: number; kind: string; payload: unknown; text: string }[]> {
   const { data: drafts } = await createAdminClient()
     .from("bot_actions")
     .select("id, kind, payload")
@@ -473,10 +496,10 @@ export async function describeDrafts(): Promise<{ id: number; kind: string; text
     .eq("payload->>source", "draft")
     .order("id");
 
-  const out: { id: number; kind: string; text: string }[] = [];
+  const out: { id: number; kind: string; payload: unknown; text: string }[] = [];
   for (const d of (drafts ?? []) as DraftRow[]) {
     const text = await describeDraft(d);
-    if (text) out.push({ id: d.id, kind: d.kind, text });
+    if (text) out.push({ id: d.id, kind: d.kind, payload: d.payload, text });
   }
   return out;
 }
@@ -520,7 +543,7 @@ export async function dispatchDrafts(opts: { resend?: boolean } = {}): Promise<{
           text,
           parse_mode: "HTML",
           link_preview_options: { is_disabled: true },
-          reply_markup: actionKeyboard(d.id, d.kind, channelSet),
+          reply_markup: actionKeyboard(d.id, d.kind, channelSet, d.payload),
         })
       : { ok: false, description: "draft target missing" };
     if (res.ok) {

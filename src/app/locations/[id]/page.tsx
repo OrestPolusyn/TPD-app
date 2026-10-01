@@ -5,13 +5,14 @@ import { createClient } from "@/lib/supabase/server";
 import { getLocationById } from "@/lib/data/locations";
 import { getFlaggedReportsForLocation, getReportDetails, getCommentsForReports } from "@/lib/data/reports";
 import { getActiveDocumentTypes } from "@/lib/data/documentTypes";
-import { getCommunityBrief } from "@/lib/data/communityNotes";
+import { getCommunityBrief, getUnconfirmedNotes } from "@/lib/data/communityNotes";
 import { getRuleChanges } from "@/lib/data/ruleChanges";
 import { RecentRuleChanges } from "@/components/location/RecentRuleChanges";
 import { madridDate } from "@/lib/stats";
 import { OfficialBlock } from "@/components/location/OfficialBlock";
 import { LocationSummary } from "@/components/location/LocationSummary";
 import { CommunityBlock } from "@/components/location/CommunityBlock";
+import { UnconfirmedNotes } from "@/components/location/UnconfirmedNotes";
 import { ShareActions } from "@/components/location/ShareActions";
 import { Disclaimer } from "@/components/shared/Disclaimer";
 import { StickyActionBar } from "@/components/shared/StickyActionBar";
@@ -77,12 +78,13 @@ export default async function LocationPage({ params, searchParams }: LocationPag
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [reportDetails, flaggedReports, documentTypes, brief, ruleChanges] = await Promise.all([
+  const [reportDetails, flaggedReports, documentTypes, brief, ruleChanges, unconfirmed] = await Promise.all([
     getReportDetails(supabase, allReportIds),
     getFlaggedReportsForLocation(supabase, location.id, PROCEDURE_CODE),
     getActiveDocumentTypes(supabase),
     getCommunityBrief(supabase, location.id, user?.id ?? null),
     getRuleChanges(supabase, { locationId: location.id, limit: 3 }),
+    getUnconfirmedNotes(supabase, location.id),
   ]);
 
   const comments = await getCommentsForReports(supabase, [
@@ -129,6 +131,7 @@ export default async function LocationPage({ params, searchParams }: LocationPag
         comments={comments}
       />
       <OfficialBlock location={location} />
+      <UnconfirmedNotes notes={unconfirmed} />
       <Disclaimer />
       <StickyActionBar href={`/reports/new?location=${location.id}`} label={tShare("addReportCta")} />
     </main>

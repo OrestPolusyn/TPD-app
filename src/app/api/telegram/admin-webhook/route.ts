@@ -115,7 +115,7 @@ async function handleMessage(token: string, owner: string | null, message: NonNu
         text: draft.text,
         parse_mode: "HTML",
         link_preview_options: { is_disabled: true },
-        reply_markup: actionKeyboard(draft.id, draft.kind, channelSet),
+        reply_markup: actionKeyboard(draft.id, draft.kind, channelSet, draft.payload),
       });
     }
     return;

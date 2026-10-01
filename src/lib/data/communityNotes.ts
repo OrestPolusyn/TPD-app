@@ -31,6 +31,7 @@ export async function getCommunityBrief(
       .select("kind, body, observed_on")
       .eq("location_id", locationId)
       .eq("moderation_status", "published")
+      .in("kind", ["document", "info"])
       .order("position", { ascending: true }),
     supabase.from("location_brief_confirmations").select("user_id, stance").eq("location_id", locationId),
     // "✅ Актуально" taps under this office's posts in the Telegram channel.
@@ -65,6 +66,31 @@ export function isBriefDisputed(brief: Pick<CommunityBrief, "still_true" | "chan
   return brief.changed >= 3 && brief.changed > brief.still_true;
 }
 
+export interface UnconfirmedNote {
+  id: string;
+  body: string;
+  observed_on: string;
+}
+
+/**
+ * Single chat reports nobody has confirmed yet, newest first — shown as
+ * comments at the bottom of the office's page, never as card bullets. A
+ * confirmed report replaces its comment with a normal note (migration 0035).
+ */
+export async function getUnconfirmedNotes(supabase: SupabaseClient, locationId: string, limit = 10): Promise<UnconfirmedNote[]> {
+  const { data, error } = await supabase
+    .from("community_notes")
+    .select("id, body, observed_on")
+    .eq("location_id", locationId)
+    .eq("moderation_status", "published")
+    .eq("kind", "unconfirmed")
+    .order("observed_on", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as UnconfirmedNote[];
+}
+
 export interface OfficeUpdate {
   location_id: string;
   city: string;
@@ -85,6 +111,7 @@ export async function getRecentOfficeUpdates(supabase: SupabaseClient, days = 14
     .from("community_notes")
     .select("location_id, body, kind, created_at, locations!inner(city, name)")
     .eq("moderation_status", "published")
+    .neq("kind", "unconfirmed")
     .gte("created_at", since)
     .order("created_at", { ascending: false })
     .limit(300);

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { cityHashtagUk, cityUk, KNOWN_CITIES } from "@/lib/cityNames";
 
 vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://tp.example");
-const { formatChangePost, formatReportPost, formatRulePost, formatStoryPost, splitSourceLabel } = await import("./adminBot");
+const { actionKeyboard, formatChangePost, formatReportPost, formatRulePost, formatStoryPost, splitSourceLabel } = await import("./adminBot");
 
 const LOCATION = { id: "comisaria-alicante", name: "Comisaría Policía Nacional — Alicante", city: "Alicante" };
 const MADRID = [
@@ -83,6 +83,20 @@ describe("channel posts", () => {
     expect(post).toContain("💬 Моя історія");
     expect(post).toContain("#історії #Аліканте");
     expect(formatStoryPost(null, "текст").startsWith("💬")).toBe(true);
+  });
+});
+
+describe("draft buttons", () => {
+  const callbacks = (k: { inline_keyboard: { callback_data: string }[][] }) => k.inline_keyboard.map((row) => row[0].callback_data);
+
+  it("offers a change for the card, as a rule change, or rejection", () => {
+    expect(callbacks(actionKeyboard(7, "accept_change", true, { kind: "document" }))).toEqual(["act:7:a", "act:7:r", "act:7:x"]);
+  });
+
+  it("offers an unconfirmed report only as a comment, never as a rule change", () => {
+    const keyboard = actionKeyboard(7, "accept_change", true, { kind: "unconfirmed" });
+    expect(callbacks(keyboard)).toEqual(["act:7:a", "act:7:x"]);
+    expect(keyboard.inline_keyboard[0][0].text).toContain("коментар");
   });
 });
 
