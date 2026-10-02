@@ -4,6 +4,8 @@ import { dispatchDrafts, refreshChannelPosts, setAdminCommands } from "@/lib/tel
 import { getAdminBotToken, getDispatchSecret, getModeratorChatId } from "@/lib/telegram/settings";
 
 export const dynamic = "force-dynamic";
+// Publishing drafts on arrival (auto mode) posts to the channel one by one.
+export const maxDuration = 60;
 
 function sameSecret(given: string | null, expected: string): boolean {
   if (!given) return false;

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { callTelegram } from "@/lib/telegram/api";
 import { deriveWebhookSecret } from "@/lib/telegram/webhookSecret";
 import { getAdminBotToken, getModeratorChatId, getUpdatesChannel } from "@/lib/telegram/settings";
-import { actionKeyboard, describeDrafts, performAction, refreshChannelPosts } from "@/lib/telegram/adminBot";
+import { actionKeyboard, describeDrafts, performAction, refreshChannelPosts, undoAction } from "@/lib/telegram/adminBot";
 import { publishChannelPost, updateChannelPost } from "@/lib/telegram/channel";
 import { guidePostText } from "@/lib/guide";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -66,6 +66,17 @@ async function handleMessage(token: string, owner: string | null, message: NonNu
   const args = text.slice(firstWord.length).trim();
 
   if (owner === String(chatId) && (await handleChatWatchCommand(token, chatId, message.message_id, command, args))) return;
+
+  // /auto_on, /auto_off: whether drafts from the chats publish themselves.
+  if ((command === "/auto_on" || command === "/auto_off") && owner === String(chatId)) {
+    const on = command === "/auto_on";
+    const { error } = await createAdminClient()
+      .from("app_settings")
+      .upsert({ key: "auto_publish_drafts", value: on ? "on" : "off", updated_at: new Date().toISOString() });
+    const t = messages.telegramBot;
+    await callTelegram(token, "sendMessage", { chat_id: chatId, text: error ? t.actionFailed : on ? t.autoOn : t.autoOff });
+    return;
+  }
 
   if (command === "/start") {
     await callTelegram(token, "sendMessage", {
@@ -147,14 +158,14 @@ async function handleButton(
   owner: string | null,
   query: NonNullable<AdminUpdate["callback_query"]>
 ) {
-  const match = /^act:(\d+)(?::([arx]))?$/.exec(query.data ?? "");
+  const match = /^act:(\d+)(?::([arxu]))?$/.exec(query.data ?? "");
   const actionId = Number(match?.[1]);
   if (!actionId || owner !== String(query.from.id)) {
     await callTelegram(token, "answerCallbackQuery", { callback_query_id: query.id });
     return;
   }
 
-  const result = await performAction(actionId, match?.[2]);
+  const result = match?.[2] === "u" ? await undoAction(actionId) : await performAction(actionId, match?.[2]);
   await callTelegram(token, "answerCallbackQuery", { callback_query_id: query.id, text: result.text });
 
   // Replace the button with a plain "done" marker so the message itself
@@ -163,7 +174,7 @@ async function handleButton(
     await callTelegram(token, "editMessageReplyMarkup", {
       chat_id: query.message.chat.id,
       message_id: query.message.message_id,
-      reply_markup: { inline_keyboard: [[{ text: `✅ ${result.text}`, callback_data: "noop" }]] },
+      reply_markup: { inline_keyboard: [[{ text: `${match?.[2] === "u" ? "↩️" : "✅"} ${result.text}`, callback_data: "noop" }]] },
     });
   }
 }

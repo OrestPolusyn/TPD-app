@@ -82,7 +82,7 @@ export async function publishChannelPost(input: {
   detailUrl?: string;
   /** The bot_actions row it came from, so the post can be redrawn later. */
   actionId?: number;
-}): Promise<{ ok: boolean; error?: string }> {
+}): Promise<{ ok: boolean; error?: string; postId?: number }> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const channel = await getUpdatesChannel();
   if (!token || !channel) return { ok: false, error: "no_channel" };
@@ -111,6 +111,24 @@ export async function publishChannelPost(input: {
     .from("channel_posts")
     .update({ message_id: res.result.message_id, chat_id: String(res.result.chat.id) })
     .eq("id", post.id);
+  return { ok: true, postId: post.id as number };
+}
+
+/**
+ * Takes a post back: deletes the channel message and its row (votes go with
+ * it). For «↩️ Скасувати» under an automatically published draft.
+ */
+export async function deleteChannelPost(postId: number): Promise<{ ok: boolean; error?: string }> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const admin = createAdminClient();
+  const { data: post } = await admin.from("channel_posts").select("chat_id, message_id").eq("id", postId).maybeSingle();
+  if (!post) return { ok: true };
+  if (token && post.chat_id && post.message_id) {
+    const res = await callTelegram(token, "deleteMessage", { chat_id: post.chat_id, message_id: post.message_id });
+    // Already gone from the channel is fine; anything else keeps the row.
+    if (!res.ok && !res.description?.includes("message to delete not found")) return { ok: false, error: res.description };
+  }
+  await admin.from("channel_posts").delete().eq("id", postId);
   return { ok: true };
 }
 

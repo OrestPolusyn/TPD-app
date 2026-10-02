@@ -48,3 +48,11 @@ export function getUpdatesChannel() {
 export function getDispatchSecret() {
   return getSetting("DRAFTS_DISPATCH_SECRET", "dispatch_secret");
 }
+
+/**
+ * Drafts from the chats publish themselves when 'on' (migration 0037); the
+ * owner gets a report with «↩️ Скасувати». /auto_on and /auto_off toggle it.
+ */
+export async function getAutoPublishDrafts(): Promise<boolean> {
+  return (await getSetting("AUTO_PUBLISH_DRAFTS", "auto_publish_drafts")) === "on";
+}

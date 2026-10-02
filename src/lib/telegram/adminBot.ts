@@ -1,7 +1,7 @@
 import { callTelegram, getWebhookInfo } from "@/lib/telegram/api";
 import { deriveWebhookSecret } from "@/lib/telegram/webhookSecret";
-import { getAdminBotToken, getModeratorChatId, getUpdatesChannel } from "@/lib/telegram/settings";
-import { publishChannelPost, locationUrl, updateChannelPost } from "@/lib/telegram/channel";
+import { getAdminBotToken, getAutoPublishDrafts, getModeratorChatId, getUpdatesChannel } from "@/lib/telegram/settings";
+import { deleteChannelPost, publishChannelPost, locationUrl, updateChannelPost } from "@/lib/telegram/channel";
 import { guidePostText } from "@/lib/guide";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { madridDate } from "@/lib/stats";
@@ -53,6 +53,8 @@ export function setAdminCommands(token: string, owner: string) {
       { command: "stats", description: t.adminCommandStats },
       { command: "post_guide", description: t.adminCommandPostGuide },
       { command: "refresh_posts", description: t.adminCommandRefreshPosts },
+      { command: "auto_on", description: t.adminCommandAutoOn },
+      { command: "auto_off", description: t.adminCommandAutoOff },
       { command: "watch_run", description: "Прочитати групи зараз" },
       { command: "watch_list", description: "Групи, які читає сервер" },
       { command: "watch_add", description: "Додати групу: /watch_add посилання" },
@@ -329,14 +331,19 @@ export async function performAction(actionId: number, variant: string | undefine
   if (offices[0]?.id !== location_id) return release(t.actionMissing);
 
   const today = madridDate(new Date());
+  const record = (result: ActionResult) => admin.from("bot_actions").update({ result }).eq("id", actionId);
   if (change.kind === "unconfirmed") {
-    const failed = await applyChangeToSite(admin, change, today, false);
-    return failed ? release(t.actionFailed) : { text: t.actionUnconfirmedAdded, done: true };
+    const site = await applyChangeToSite(admin, change, today, false);
+    if (!site) return release(t.actionFailed);
+    await record(site);
+    return { text: t.actionUnconfirmedAdded, done: true };
   }
   const asRule = variant === "r";
+  let site: ActionResult = {};
   if (!change.channel_only) {
-    const failed = await applyChangeToSite(admin, change, today, asRule);
-    if (failed) return release(t.actionFailed);
+    const applied = await applyChangeToSite(admin, change, today, asRule);
+    if (!applied) return release(t.actionFailed);
+    site = applied;
   }
 
   const res = await publishChannelPost({
@@ -347,6 +354,7 @@ export async function performAction(actionId: number, variant: string | undefine
   });
   // Nothing else happened, so a failed repost can simply be tapped again.
   if (change.channel_only && !res.ok) return release(`${t.actionFailed} ${res.error ?? ""}`.trim());
+  await record({ ...site, channel_post_id: res.postId });
   const channelSet = Boolean(await getUpdatesChannel());
   const text = res.ok
     ? asRule
@@ -358,36 +366,107 @@ export async function performAction(actionId: number, variant: string | undefine
   return { text, done: true };
 }
 
-/** The card bullets (and the rule-change entry) a change adds. True on failure. */
+/**
+ * What publishing an action created (bot_actions.result, migration 0037),
+ * so «↩️ Скасувати» can take back exactly that and nothing else.
+ */
+export interface ActionResult {
+  note_ids?: string[];
+  retired_note_ids?: string[];
+  rule_change_id?: number | null;
+  channel_post_id?: number | null;
+}
+
+/** The card bullets (and the rule-change entry) a change adds; null on failure. */
 async function applyChangeToSite(
   admin: ReturnType<typeof createAdminClient>,
   change: ChangePayload,
   today: string,
   asRule: boolean
-): Promise<boolean> {
+): Promise<ActionResult | null> {
   const { location_id, detail } = change;
   const locationIds = [location_id, ...(change.also_location_ids ?? [])];
-  const { error: noteError } = await admin.from("community_notes").insert(
-    locationIds.map((id) => ({
-      location_id: id,
-      kind: change.kind ?? "info",
-      position: 0,
-      body: clip(detail.trim(), 600),
-      observed_on: change.observed_on && /^\d{4}-\d{2}-\d{2}$/.test(change.observed_on) ? change.observed_on : today,
-    }))
-  );
-  if (noteError) return true;
+  const { data: notes, error: noteError } = await admin
+    .from("community_notes")
+    .insert(
+      locationIds.map((id) => ({
+        location_id: id,
+        kind: change.kind ?? "info",
+        position: 0,
+        body: clip(detail.trim(), 600),
+        observed_on: change.observed_on && /^\d{4}-\d{2}-\d{2}$/.test(change.observed_on) ? change.observed_on : today,
+      }))
+    )
+    .select("id");
+  if (noteError) return null;
+  const result: ActionResult = { note_ids: (notes ?? []).map((n) => n.id as string) };
+
   if (change.retire_note_ids?.length) {
-    await admin.from("community_notes").update({ moderation_status: "hidden" }).in("id", change.retire_note_ids);
+    // Only the ones still published: undo must not re-publish a bullet
+    // that had been hidden for another reason.
+    const { data: retired } = await admin
+      .from("community_notes")
+      .update({ moderation_status: "hidden" })
+      .in("id", change.retire_note_ids)
+      .eq("moderation_status", "published")
+      .select("id");
+    result.retired_note_ids = (retired ?? []).map((n) => n.id as string);
   }
 
   if (asRule) {
-    const { error: ruleError } = await admin
+    const { data: rule, error: ruleError } = await admin
       .from("rule_changes")
-      .insert({ location_id, effective_date: today, title: clip(detail.trim(), 300) });
+      .insert({ location_id, effective_date: today, title: clip(detail.trim(), 300) })
+      .select("id")
+      .single();
     if (ruleError) console.error("rule change not recorded:", ruleError.message);
+    result.rule_change_id = (rule?.id as number | undefined) ?? null;
   }
-  return false;
+  return result;
+}
+
+/**
+ * «↩️ Скасувати» under an automatically published draft: hides the bullets
+ * it added, brings back the ones it replaced, removes its rule-change entry
+ * and deletes its channel post. One-shot (undone_at).
+ */
+export async function undoAction(actionId: number): Promise<{ text: string; done: boolean }> {
+  const t = messages.telegramBot;
+  const admin = createAdminClient();
+  const { data: claimed, error } = await admin
+    .from("bot_actions")
+    .update({ undone_at: new Date().toISOString() })
+    .eq("id", actionId)
+    .not("done_at", "is", null)
+    .is("undone_at", null)
+    .select("result")
+    .maybeSingle();
+  if (error) return { text: t.actionFailed, done: false };
+  if (!claimed) return { text: t.actionAlready, done: true };
+
+  const result = (claimed.result ?? {}) as ActionResult;
+  if (result.channel_post_id) {
+    const res = await deleteChannelPost(result.channel_post_id);
+    if (!res.ok) {
+      await admin.from("bot_actions").update({ undone_at: null }).eq("id", actionId);
+      return { text: `${t.actionFailed} ${res.error ?? ""}`.trim(), done: false };
+    }
+  }
+  if (result.note_ids?.length) {
+    await admin.from("community_notes").update({ moderation_status: "hidden" }).in("id", result.note_ids);
+  }
+  if (result.retired_note_ids?.length) {
+    await admin.from("community_notes").update({ moderation_status: "published" }).in("id", result.retired_note_ids);
+  }
+  if (result.rule_change_id) {
+    await admin.from("rule_changes").delete().eq("id", result.rule_change_id);
+  }
+  return { text: t.actionUndone, done: true };
+}
+
+/** The one button under an automatically published draft. */
+export function undoKeyboard(actionId: number) {
+  return { inline_keyboard: [[{ text: messages.telegramBot.undoButton, callback_data: `act:${actionId}:u` }]] };
 }
 
 async function loadReportPost(admin: ReturnType<typeof createAdminClient>, reportId: string): Promise<ReportForPost | null> {
@@ -531,19 +610,33 @@ export async function dispatchDrafts(opts: { resend?: boolean } = {}): Promise<{
     return { sent: 0, failed: 0 };
   }
 
-  const channelSet = Boolean(await getUpdatesChannel());
+  const [channelSet, auto] = await Promise.all([getUpdatesChannel().then(Boolean), getAutoPublishDrafts()]);
   let sent = 0;
   let failed = 0;
   const ordered = ((claimed ?? []) as DraftRow[]).sort((a, b) => a.id - b.id);
-  for (const d of ordered) {
-    const text = await describeDraft(d);
+  for (const [i, d] of ordered.entries()) {
+    // Described before publishing: afterwards the bullets it replaces are
+    // already hidden and would no longer show as "replaces".
+    let text = await describeDraft(d);
+    let keyboard: object = actionKeyboard(d.id, d.kind, channelSet, d.payload);
+    if (text && auto) {
+      // The channel takes ~20 posts a minute from a bot; space them out.
+      if (i > 0) await new Promise((resolve) => setTimeout(resolve, 1500));
+      const published = await performAction(d.id, "a");
+      if (published.done) {
+        text = `<b>${esc(messages.telegramBot.autoPublishedHeader)}</b> · ${esc(published.text)}\n\n${text}`;
+        keyboard = undoKeyboard(d.id);
+      } else {
+        text = `<b>${esc(messages.telegramBot.autoPublishFailed)}</b> (${esc(published.text)})\n\n${text}`;
+      }
+    }
     const res = text
       ? await callTelegram(token, "sendMessage", {
           chat_id: chatId,
           text,
           parse_mode: "HTML",
           link_preview_options: { is_disabled: true },
-          reply_markup: actionKeyboard(d.id, d.kind, channelSet, d.payload),
+          reply_markup: keyboard,
         })
       : { ok: false, description: "draft target missing" };
     if (res.ok) {
