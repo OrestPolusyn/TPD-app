@@ -1,7 +1,8 @@
 /**
  * One pass over the watched groups: read what is new since last time, keep
  * what is about temporary protection, store it for the scheduled Claude pass
- * that turns it into drafts, and tell the owner how much there was.
+ * that turns it into drafts. The owner hears from a run only when asked
+ * (/watch_run) or when a group could not be read.
  *
  * Runs twice a day from the database's schedule (12:00 and 22:00 Madrid,
  * 0036) and on /watch_run.
@@ -156,7 +157,9 @@ export async function runChatWatch(options: { notifyWhenEmpty?: boolean } = {}):
     .delete()
     .lt("seen_at", new Date(Date.now() - SEEN_TTL_DAYS * 86_400_000).toISOString());
 
-  if (fresh.length > 0 || errors.length > 0 || options.notifyWhenEmpty) {
+  // Scheduled runs stay silent unless something is wrong: what they found
+  // reaches the owner as ready drafts from the Claude pass at :05.
+  if (errors.length > 0 || options.notifyWhenEmpty) {
     await sendToOwner([formatRunNotice({ found: fresh, sources: sources.length, hidden, errors, now: new Date() })]);
   }
   return { status: "done", found: fresh.length, hidden, sources: sources.length, errors: errors.length };
