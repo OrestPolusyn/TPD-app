@@ -48,3 +48,7 @@ next-env.d.ts
 # Telegram login session of scripts/tg_export.py — a signed-in account
 *.session
 *.session-journal
+
+# Python bytecode (tools/chat-collector)
+__pycache__/
+*.pyc
