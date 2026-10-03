@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { cityHashtagUk, cityUk, KNOWN_CITIES } from "@/lib/cityNames";
 
 vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://tp.example");
-const { actionKeyboard, undoKeyboard, formatChangePost, formatReportPost, formatRulePost, formatStoryPost, splitSourceLabel } = await import("./adminBot");
+const { actionKeyboard, undoKeyboard, formatUnconfirmedPost, formatChangePost, formatReportPost, formatRulePost, formatStoryPost, splitSourceLabel } = await import("./adminBot");
 
 const LOCATION = { id: "comisaria-alicante", name: "Comisaría Policía Nacional — Alicante", city: "Alicante" };
 const MADRID = [
@@ -83,6 +83,16 @@ describe("channel posts", () => {
     expect(post).toContain("💬 Моя історія");
     expect(post).toContain("#історії #Аліканте");
     expect(formatStoryPost(null, "текст").startsWith("💬")).toBe(true);
+  });
+});
+
+describe("unconfirmed posts", () => {
+  it("say in the heading and hashtags that one chat message is all there is", () => {
+    const post = formatUnconfirmedPost([LOCATION], "2026-10-01", "Резерв+ <з перекладом>");
+    expect(post.startsWith("📍 <b>Аліканте</b> · 💬 з чатів, не підтверджено")).toBe(true);
+    expect(post).toContain("Резерв+ &lt;з перекладом&gt;");
+    expect(post).toContain("Поки одне повідомлення з чату");
+    expect(post.trim().endsWith("#не_підтверджено #Аліканте")).toBe(true);
   });
 });
 

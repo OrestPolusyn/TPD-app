@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
-import { dispatchDrafts, refreshChannelPosts, setAdminCommands } from "@/lib/telegram/adminBot";
+import { dispatchDrafts, postPublishedComment, refreshChannelPosts, setAdminCommands } from "@/lib/telegram/adminBot";
 import { getAdminBotToken, getDispatchSecret, getModeratorChatId } from "@/lib/telegram/settings";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,8 @@ function sameSecret(given: string | null, expected: string): boolean {
  *
  * Body (all optional): `resend` sends every open draft again, even ones
  * already shown — for when the message format changes; `refresh` redraws
- * the published channel posts too.
+ * the published channel posts too; `post_comments` (action ids) posts
+ * unconfirmed comments already on the site to the channel.
  */
 export async function POST(request: NextRequest) {
   const secret = await getDispatchSecret();
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 403 });
   }
 
-  let body: { resend?: boolean; refresh?: boolean } = {};
+  let body: { resend?: boolean; refresh?: boolean; post_comments?: number[] } = {};
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -42,6 +43,14 @@ export async function POST(request: NextRequest) {
   const result: Record<string, unknown> = { ok: true };
   try {
     result.drafts = await dispatchDrafts({ resend: body.resend === true });
+    if (Array.isArray(body.post_comments)) {
+      let posted = 0;
+      for (const id of body.post_comments.filter((n) => Number.isInteger(n)).slice(0, 12)) {
+        if (await postPublishedComment(id)) posted++;
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+      result.comments_posted = posted;
+    }
     if (body.refresh === true) {
       result.posts = await refreshChannelPosts();
       // New commands show up in the owner's menu without a trip to /admin-setup.

@@ -242,6 +242,23 @@ export function formatRulePost(offices: OfficeRef[], date: string, detail: strin
   ].join("\n");
 }
 
+/**
+ * A single chat report nobody has confirmed yet: marked as such in the
+ * heading and the hashtags, so it is never read as the office's rules.
+ */
+export function formatUnconfirmedPost(offices: OfficeRef[], date: string | undefined, detail: string): string {
+  const t = messages.telegramBot;
+  return [
+    ...officesHeading(offices, `💬 ${t.postUnconfirmed}`),
+    "",
+    `${date ? `<b>${esc(formatDate(date))}:</b> ` : ""}${esc(clip(detail.trim(), 600))}`,
+    "",
+    `<i>${esc(t.postUnconfirmedNote)}</i>`,
+    `${esc(t.postCurrent)}: ${esc(locationUrl(offices[0].id))}`,
+    `#${esc(t.postUnconfirmedTag)} ${hashtags(offices)}`,
+  ].join("\n");
+}
+
 /** A reader's story, anonymous; tied to an office when it came from one's post. */
 export function formatStoryPost(office: OfficeRef | null, story: string): string {
   const t = messages.telegramBot;
@@ -335,8 +352,14 @@ export async function performAction(actionId: number, variant: string | undefine
   if (change.kind === "unconfirmed") {
     const site = await applyChangeToSite(admin, change, today, false);
     if (!site) return release(t.actionFailed);
-    await record(site);
-    return { text: t.actionUnconfirmedAdded, done: true };
+    const posted = await publishChannelPost({
+      kind: "change",
+      locationId: location_id,
+      text: formatUnconfirmedPost(offices, change.observed_on, detail),
+      actionId,
+    });
+    await record({ ...site, channel_post_id: posted.postId });
+    return { text: posted.ok ? t.actionUnconfirmedPublished : t.actionUnconfirmedAdded, done: true };
   }
   const asRule = variant === "r";
   let site: ActionResult = {};
@@ -462,6 +485,34 @@ export async function undoAction(actionId: number): Promise<{ text: string; done
     await admin.from("rule_changes").delete().eq("id", result.rule_change_id);
   }
   return { text: t.actionUndone, done: true };
+}
+
+/**
+ * Posts an unconfirmed comment that is already on the site to the channel —
+ * for comments published before they were also posted (owner, 03.10).
+ * Skips anything not live, not unconfirmed, or already posted.
+ */
+export async function postPublishedComment(actionId: number): Promise<boolean> {
+  const admin = createAdminClient();
+  const { data: action } = await admin
+    .from("bot_actions")
+    .select("payload, result, done_at, undone_at")
+    .eq("id", actionId)
+    .maybeSingle();
+  const change = action?.payload as ChangePayload | undefined;
+  const result = (action?.result ?? {}) as ActionResult;
+  if (!action?.done_at || action.undone_at || change?.kind !== "unconfirmed" || result.channel_post_id) return false;
+  const offices = await loadOffices(admin, change);
+  if (offices.length === 0) return false;
+  const posted = await publishChannelPost({
+    kind: "change",
+    locationId: change.location_id,
+    text: formatUnconfirmedPost(offices, change.observed_on, change.detail),
+    actionId,
+  });
+  if (!posted.ok) return false;
+  await admin.from("bot_actions").update({ result: { ...result, channel_post_id: posted.postId } }).eq("id", actionId);
+  return true;
 }
 
 /** The one button under an automatically published draft. */
@@ -687,7 +738,9 @@ export async function refreshChannelPosts(): Promise<{ updated: number; skipped:
           text =
             post.kind === "rule"
               ? formatRulePost(offices, madridDate(new Date(post.created_at as string)), change.detail)
-              : formatChangePost(offices, change.detail);
+              : change.kind === "unconfirmed"
+                ? formatUnconfirmedPost(offices, change.observed_on, change.detail)
+                : formatChangePost(offices, change.detail);
         }
       }
     }
