@@ -215,20 +215,42 @@ export function formatReportPost(r: ReportForPost): string {
   return lines.join("\n");
 }
 
+/**
+ * Public chat messages a post came from: t.me/<group>/<id> only — links to
+ * private groups (t.me/c/…) open for members alone, so a reader of the
+ * channel would get an error.
+ */
+export function publicSourceLinks(links: string[] | undefined): string[] {
+  return (links ?? []).filter((l) => /^https:\/\/t\.me\/(?!c\/)[A-Za-z0-9_]{4,}\/\d+$/.test(l)).slice(0, 5);
+}
+
+/**
+ * The link line at the bottom of a post: the chat message(s) it came from,
+ * so readers can follow the discussion (owner, 03.10); the office page when
+ * there is no public source. The "🔎 Детальніше" button still opens the page.
+ */
+function linkLine(offices: OfficeRef[], sourceLinks?: string[]): string {
+  const t = messages.telegramBot;
+  const links = publicSourceLinks(sourceLinks);
+  if (links.length === 1) return `💬 <a href="${esc(links[0])}">${esc(t.postSource)}</a>`;
+  if (links.length > 1) return `💬 ${esc(t.postSources)}: ${links.map((l, i) => `<a href="${esc(l)}">${i + 1}</a>`).join(" · ")}`;
+  return `${esc(t.postCurrent)}: ${esc(locationUrl(offices[0].id))}`;
+}
+
 /** An accepted change; the first office is the one the link opens. */
-export function formatChangePost(offices: OfficeRef[], detail: string): string {
+export function formatChangePost(offices: OfficeRef[], detail: string, sourceLinks?: string[]): string {
   const t = messages.telegramBot;
   return [
     ...officesHeading(offices, t.postUpdate),
     "",
     esc(clip(detail.trim(), 600)),
     "",
-    `${esc(t.postCurrent)}: ${esc(locationUrl(offices[0].id))}`,
+    linkLine(offices, sourceLinks),
     hashtags(offices),
   ].join("\n");
 }
 
-export function formatRulePost(offices: OfficeRef[], date: string, detail: string): string {
+export function formatRulePost(offices: OfficeRef[], date: string, detail: string, sourceLinks?: string[]): string {
   const t = messages.telegramBot;
   const cities = [...new Set(offices.map((o) => cityUk(o.city)))].join(", ");
   return [
@@ -237,7 +259,7 @@ export function formatRulePost(offices: OfficeRef[], date: string, detail: strin
     "",
     `<b>${esc(formatDate(date))}:</b> ${esc(clip(detail.trim(), 600))}`,
     "",
-    `${esc(t.postCurrent)}: ${esc(locationUrl(offices[0].id))}`,
+    linkLine(offices, sourceLinks),
     `#${esc(t.postRuleTag)} ${hashtags(offices)}`,
   ].join("\n");
 }
@@ -246,7 +268,7 @@ export function formatRulePost(offices: OfficeRef[], date: string, detail: strin
  * A single chat report nobody has confirmed yet: marked as such in the
  * heading and the hashtags, so it is never read as the office's rules.
  */
-export function formatUnconfirmedPost(offices: OfficeRef[], date: string | undefined, detail: string): string {
+export function formatUnconfirmedPost(offices: OfficeRef[], date: string | undefined, detail: string, sourceLinks?: string[]): string {
   const t = messages.telegramBot;
   return [
     ...officesHeading(offices, `💬 ${t.postUnconfirmed}`),
@@ -254,7 +276,7 @@ export function formatUnconfirmedPost(offices: OfficeRef[], date: string | undef
     `${date ? `<b>${esc(formatDate(date))}:</b> ` : ""}${esc(clip(detail.trim(), 600))}`,
     "",
     `<i>${esc(t.postUnconfirmedNote)}</i>`,
-    `${esc(t.postCurrent)}: ${esc(locationUrl(offices[0].id))}`,
+    linkLine(offices, sourceLinks),
     `#${esc(t.postUnconfirmedTag)} ${hashtags(offices)}`,
   ].join("\n");
 }
@@ -355,7 +377,7 @@ export async function performAction(actionId: number, variant: string | undefine
     const posted = await publishChannelPost({
       kind: "change",
       locationId: location_id,
-      text: formatUnconfirmedPost(offices, change.observed_on, detail),
+      text: formatUnconfirmedPost(offices, change.observed_on, detail, change.source_links),
       actionId,
     });
     await record({ ...site, channel_post_id: posted.postId });
@@ -372,7 +394,9 @@ export async function performAction(actionId: number, variant: string | undefine
   const res = await publishChannelPost({
     kind: asRule ? "rule" : "change",
     locationId: location_id,
-    text: asRule ? formatRulePost(offices, today, detail) : formatChangePost(offices, detail),
+    text: asRule
+      ? formatRulePost(offices, today, detail, change.source_links)
+      : formatChangePost(offices, detail, change.source_links),
     actionId,
   });
   // Nothing else happened, so a failed repost can simply be tapped again.
@@ -507,7 +531,7 @@ export async function postPublishedComment(actionId: number): Promise<boolean> {
   const posted = await publishChannelPost({
     kind: "change",
     locationId: change.location_id,
-    text: formatUnconfirmedPost(offices, change.observed_on, change.detail),
+    text: formatUnconfirmedPost(offices, change.observed_on, change.detail, change.source_links),
     actionId,
   });
   if (!posted.ok) return false;
@@ -602,8 +626,8 @@ export async function describeDraft(d: DraftRow): Promise<string | null> {
   const header = unconfirmed ? t.draftUnconfirmedHeader : change.channel_only ? t.draftRepostHeader : t.draftHeader;
   // A comment is not a channel post: show the office and the text as is.
   const body = unconfirmed
-    ? [...officesHeading(offices), "", `${change.observed_on ? `<b>${esc(formatDate(change.observed_on))}:</b> ` : ""}${esc(change.detail.trim())}`].join("\n")
-    : formatChangePost(offices, change.detail);
+    ? formatUnconfirmedPost(offices, change.observed_on, change.detail, change.source_links)
+    : formatChangePost(offices, change.detail, change.source_links);
   const lines = [`<b>${esc(header)}</b>`, "", body];
   if (change.retire_note_ids?.length && !change.channel_only) {
     const { data: old } = await admin.from("community_notes").select("body").in("id", change.retire_note_ids);
@@ -712,7 +736,9 @@ export async function refreshChannelPosts(): Promise<{ updated: number; skipped:
     .from("channel_posts")
     .select("id, kind, action_id, created_at")
     .not("message_id", "is", null)
-    .order("id");
+    // Newest first: if Telegram's rate limit stops the run, the posts people
+    // are reading now are the ones already redrawn.
+    .order("id", { ascending: false });
 
   let updated = 0;
   let skipped = 0;
@@ -737,10 +763,10 @@ export async function refreshChannelPosts(): Promise<{ updated: number; skipped:
         if (offices.length > 0) {
           text =
             post.kind === "rule"
-              ? formatRulePost(offices, madridDate(new Date(post.created_at as string)), change.detail)
+              ? formatRulePost(offices, madridDate(new Date(post.created_at as string)), change.detail, change.source_links)
               : change.kind === "unconfirmed"
-                ? formatUnconfirmedPost(offices, change.observed_on, change.detail)
-                : formatChangePost(offices, change.detail);
+                ? formatUnconfirmedPost(offices, change.observed_on, change.detail, change.source_links)
+                : formatChangePost(offices, change.detail, change.source_links);
         }
       }
     }
@@ -750,6 +776,8 @@ export async function refreshChannelPosts(): Promise<{ updated: number; skipped:
       continue;
     }
     const res = await updateChannelPost(post.id as number, text, detailUrl);
+    // ~20 edits a minute per channel before Telegram answers 429.
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     if (res.ok) updated++;
     else {
       skipped++;

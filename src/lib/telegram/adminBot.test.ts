@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { cityHashtagUk, cityUk, KNOWN_CITIES } from "@/lib/cityNames";
 
 vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://tp.example");
-const { actionKeyboard, undoKeyboard, formatUnconfirmedPost, formatChangePost, formatReportPost, formatRulePost, formatStoryPost, splitSourceLabel } = await import("./adminBot");
+const { actionKeyboard, undoKeyboard, publicSourceLinks, formatUnconfirmedPost, formatChangePost, formatReportPost, formatRulePost, formatStoryPost, splitSourceLabel } = await import("./adminBot");
 
 const LOCATION = { id: "comisaria-alicante", name: "Comisaría Policía Nacional — Alicante", city: "Alicante" };
 const MADRID = [
@@ -93,6 +93,22 @@ describe("unconfirmed posts", () => {
     expect(post).toContain("Резерв+ &lt;з перекладом&gt;");
     expect(post).toContain("Поки одне повідомлення з чату");
     expect(post.trim().endsWith("#не_підтверджено #Аліканте")).toBe(true);
+  });
+});
+
+describe("source links in posts", () => {
+  it("link the chat message instead of the site, and only public groups", () => {
+    const post = formatUnconfirmedPost([LOCATION], "2026-10-02", "Факт", ["https://t.me/ukrainciuvalencii/74820"]);
+    expect(post).toContain('💬 <a href="https://t.me/ukrainciuvalencii/74820">Обговорення в чаті →</a>');
+    expect(post).not.toContain("tp.example/locations");
+    expect(publicSourceLinks(["https://t.me/c/123456/7", "https://t.me/spain_useful/1"])).toEqual(["https://t.me/spain_useful/1"]);
+  });
+
+  it("number several sources and fall back to the office page without any", () => {
+    expect(formatChangePost([LOCATION], "Факт", ["https://t.me/a_chat/1", "https://t.me/b_chat/2"])).toContain(
+      '💬 Обговорення в чатах: <a href="https://t.me/a_chat/1">1</a> · <a href="https://t.me/b_chat/2">2</a>'
+    );
+    expect(formatChangePost([LOCATION], "Факт", ["https://t.me/c/1/2"])).toContain("https://tp.example/locations/comisaria-alicante");
   });
 });
 
