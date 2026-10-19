@@ -14,8 +14,8 @@ function sameSecret(given: string | null, expected: string): boolean {
 }
 
 /**
- * The scheduled chat watch: the database's pg_cron calls this at 12:00 and
- * 22:00 Madrid time (migration 0036) with the shared dispatch secret. /watch_run in the admin
+ * The scheduled chat watch: the database's pg_cron calls this at 07:00, 12:00,
+ * 17:00 and 22:00 Madrid time (migration 0038) with the shared dispatch secret. /watch_run in the admin
  * bot does the same thing on demand.
  */
 export async function POST(request: NextRequest) {

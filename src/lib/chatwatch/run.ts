@@ -4,8 +4,8 @@
  * that turns it into drafts. The owner hears from a run only when asked
  * (/watch_run) or when a group could not be read.
  *
- * Runs twice a day from the database's schedule (12:00 and 22:00 Madrid,
- * 0036) and on /watch_run.
+ * Runs four times a day from the database's schedule (07:00, 12:00, 17:00 and
+ * 22:00 Madrid, 0038) and on /watch_run.
  * Nothing goes to the site or the channel from here.
  */
 import { createHash } from "node:crypto";
