@@ -37,7 +37,7 @@ export function formatRunNotice({ found, sources, errors, now }: DigestInput): s
   const lines = [`🗞 <b>Чати про захист</b> · ${esc(madridTime(now))}`];
   lines.push(
     found.length > 0
-      ? `Прочитано нових повідомлень: ${found.length} (груп: ${sources}). Готові до публікації чернетки прийдуть сюди о 12:05 або 22:05.`
+      ? `Прочитано нових повідомлень: ${found.length} (груп: ${sources}). Найближча обробка (о 07:05, 12:05, 17:05 або 22:05) опублікує знайдене й надішле звіт сюди.`
       : `Нового про захист немає · перевірено груп: ${sources}`
   );
   if (errors.length > 0) {
