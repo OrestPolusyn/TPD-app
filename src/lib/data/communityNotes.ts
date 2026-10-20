@@ -97,13 +97,16 @@ export interface OfficeUpdate {
   name: string;
   /** When the newest of these bullets was added. */
   added_at: string;
-  bullets: string[];
+  bullets: { body: string; unconfirmed: boolean }[];
 }
 
 /**
- * Card bullets added recently, grouped by office, newest office first — the
- * "what changed" half of /feed. By when a bullet was added, not the date it
- * describes: a fact from 23.09 added today is today's news on this site.
+ * Card bullets and unconfirmed chat comments added recently, grouped by
+ * office, newest office first — the "what changed" half of /feed. The
+ * comments come along (marked) because the channel posts them too: what is
+ * news in Telegram should be news here. By when a bullet was added, not the
+ * date it describes: a fact from 23.09 added today is today's news on this
+ * site.
  */
 export async function getRecentOfficeUpdates(supabase: SupabaseClient, days = 14, limit = 12): Promise<OfficeUpdate[]> {
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
@@ -111,7 +114,6 @@ export async function getRecentOfficeUpdates(supabase: SupabaseClient, days = 14
     .from("community_notes")
     .select("location_id, body, kind, created_at, locations!inner(city, name)")
     .eq("moderation_status", "published")
-    .neq("kind", "unconfirmed")
     .gte("created_at", since)
     .order("created_at", { ascending: false })
     .limit(300);
@@ -127,7 +129,7 @@ export async function getRecentOfficeUpdates(supabase: SupabaseClient, days = 14
       added_at: row.created_at,
       bullets: [],
     };
-    entry.bullets.push(row.body);
+    entry.bullets.push({ body: row.body, unconfirmed: row.kind === "unconfirmed" });
     byOffice.set(row.location_id, entry);
   }
   return [...byOffice.values()].slice(0, limit);

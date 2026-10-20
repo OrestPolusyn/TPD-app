@@ -13,7 +13,7 @@ describe("run notice", () => {
   it("counts what was read and never pastes the messages themselves", () => {
     const text = formatRunNotice({ found: [msg("Бильбао - справку не признают"), msg("Луго - дали")], sources: 17, hidden: 240, errors: [], now: at(20) });
     expect(text).toContain("Прочитано нових повідомлень: 2 (груп: 17)");
-    expect(text).toContain("чернетки прийдуть");
+    expect(text).toContain("Найближча обробка");
     expect(text).not.toContain("Бильбао");
     expect(text).not.toContain("t.me");
   });

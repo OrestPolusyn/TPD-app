@@ -539,6 +539,7 @@
     "updatesTitle": "Оновлення по відділках",
     "addedOn": "додано {date}",
     "moreBullets": "ще {count} — дивитись усе",
+    "unconfirmedTag": "з чатів, не підтверджено",
     "reportsTitle": "Звіти"
   },
   "adminStats": {

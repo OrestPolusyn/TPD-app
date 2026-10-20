@@ -91,11 +91,14 @@ export default async function FeedPage() {
                 </div>
                 <ul className="mt-1.5 flex flex-col gap-0.5">
                   {u.bullets.slice(0, 3).map((b) => (
-                    <li key={b} className="flex gap-1.5 leading-snug">
+                    <li key={b.body} className="flex gap-1.5 leading-snug">
                       <span aria-hidden="true" className="text-[var(--muted)]">
                         •
                       </span>
-                      <span>{b}</span>
+                      <span>
+                        {b.unconfirmed ? <span className="text-[var(--muted)]">💬 {t("unconfirmedTag")}: </span> : null}
+                        {b.body}
+                      </span>
                     </li>
                   ))}
                 </ul>
