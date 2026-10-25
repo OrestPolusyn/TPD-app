@@ -10,17 +10,18 @@ export async function getSetting(envName: string, key: string): Promise<string |
   const fromEnv = process.env[envName]?.trim();
   if (fromEnv) return fromEnv;
 
-  try {
-    const { data, error } = await createAdminClient().from("app_settings").select("value").eq("key", key).maybeSingle();
-    if (error) {
-      console.error(`could not read setting ${key}:`, error.message);
-      return null;
+  // Two tries: a single failed read once turned the 22:00 chat watch away
+  // with a 403 (24.10), and the next scheduled run is five hours later.
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const { data, error } = await createAdminClient().from("app_settings").select("value").eq("key", key).maybeSingle();
+      if (!error) return data?.value?.trim() || null;
+      console.error(`could not read setting ${key} (try ${attempt}):`, error.message);
+    } catch (err) {
+      console.error(`could not read setting ${key} (try ${attempt}):`, err);
     }
-    return data?.value?.trim() || null;
-  } catch (err) {
-    console.error(`could not read setting ${key}:`, err);
-    return null;
   }
+  return null;
 }
 
 /** The owner's chat: where admin notices go and the only chat /stats answers. */
