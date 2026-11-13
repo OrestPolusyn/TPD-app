@@ -60,6 +60,41 @@ async function sendToOwner(texts: string[]): Promise<void> {
   }
 }
 
+/**
+ * Keeps what is new for the scheduled Claude pass (see 0033); returns it.
+ * The same city summary is forwarded to several chats: once is enough.
+ */
+async function storeFound(
+  admin: ReturnType<typeof createAdminClient>,
+  found: (FoundMessage & { fp: string })[]
+): Promise<(FoundMessage & { fp: string })[]> {
+  const unique = [...new Map(found.map((f) => [f.fp, f])).values()];
+  if (unique.length === 0) return [];
+  const { data: seen } = await admin
+    .from("chatwatch_seen")
+    .select("fingerprint")
+    .in("fingerprint", unique.map((f) => f.fp));
+  const seenSet = new Set((seen ?? []).map((s) => s.fingerprint as string));
+  const fresh = unique.filter((f) => !seenSet.has(f.fp));
+  if (fresh.length === 0) return [];
+  const { error } = await admin.from("chatwatch_found").insert(
+    fresh.map((f) => ({
+      source_title: f.sourceTitle,
+      msg_date: f.date.toISOString(),
+      text: f.text,
+      link: f.link,
+      cities: citiesIn(f.text),
+    }))
+  );
+  if (error) {
+    console.error("chat watch: found messages not stored:", error.message);
+    return [];
+  }
+  // Marked seen only once stored, so a failed insert is retried next time.
+  await admin.from("chatwatch_seen").upsert(fresh.map((f) => ({ fingerprint: f.fp })));
+  return fresh;
+}
+
 export async function runChatWatch(options: { notifyWhenEmpty?: boolean } = {}): Promise<RunResult> {
   const [creds, session] = await Promise.all([getApiCredentials(), getSession()]);
   if (!creds || !session) return { status: "not_connected" };
@@ -73,6 +108,7 @@ export async function runChatWatch(options: { notifyWhenEmpty?: boolean } = {}):
   const found: (FoundMessage & { fp: string })[] = [];
   const errors: { title: string; error: string }[] = [];
   let hidden = 0;
+  let fresh: (FoundMessage & { fp: string })[] = [];
 
   try {
     await withClient(session, creds, async (client) => {
@@ -111,6 +147,11 @@ export async function runChatWatch(options: { notifyWhenEmpty?: boolean } = {}):
           await admin.from("chatwatch_sources").update({ last_run_at: new Date().toISOString(), last_error: message }).eq("id", source.id);
         }
       }
+      // Stored before anything else: the sources above already moved their
+      // last_message_id on, so messages not stored now are never read again
+      // (11–12.11 the views below ran past the time limit and lost them).
+      fresh = await storeFound(admin, found);
+
       // While logged in anyway: how many people saw each channel post, for
       // the owner's statistics. Never at the cost of the digest.
       if (Date.now() - started < TIME_BUDGET_MS) {
@@ -126,32 +167,6 @@ export async function runChatWatch(options: { notifyWhenEmpty?: boolean } = {}):
     throw err;
   }
 
-  // The same city summary is forwarded to several chats: once is enough.
-  const unique = [...new Map(found.map((f) => [f.fp, f])).values()];
-  let fresh = unique;
-  if (unique.length > 0) {
-    const { data: seen } = await admin
-      .from("chatwatch_seen")
-      .select("fingerprint")
-      .in("fingerprint", unique.map((f) => f.fp));
-    const seenSet = new Set((seen ?? []).map((s) => s.fingerprint as string));
-    fresh = unique.filter((f) => !seenSet.has(f.fp));
-    if (fresh.length > 0) {
-      await admin.from("chatwatch_seen").upsert(fresh.map((f) => ({ fingerprint: f.fp })));
-      // Kept for the scheduled Claude session that turns them into drafts
-      // (see docs in supabase/migrations/0033).
-      const { error } = await admin.from("chatwatch_found").insert(
-        fresh.map((f) => ({
-          source_title: f.sourceTitle,
-          msg_date: f.date.toISOString(),
-          text: f.text,
-          link: f.link,
-          cities: citiesIn(f.text),
-        }))
-      );
-      if (error) console.error("chat watch: found messages not stored:", error.message);
-    }
-  }
   await admin
     .from("chatwatch_seen")
     .delete()

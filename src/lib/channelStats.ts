@@ -32,19 +32,25 @@ export async function recordChannelMembers(admin: SupabaseClient, day: string): 
 }
 
 /**
- * Views and forwards of the channel's posts of the last 60 days, through the
- * owner's Telegram login. Best effort: the chat watch must not fail because
- * of it.
+ * Views and forwards of the channel's newest posts (last 30 days, at most
+ * VIEWS_POSTS of them), through the owner's Telegram login. Best effort: the
+ * chat watch must not fail because of it, and with every post of 60 days it
+ * once ran the whole run past its time limit (12.11).
  */
+/** Newest posts whose views one run refreshes. */
+const VIEWS_POSTS = 60;
+
 export async function collectPostViews(admin: SupabaseClient, client: TelegramClient): Promise<number> {
   const channel = await getUpdatesChannel();
   if (!channel?.startsWith("@")) return 0;
-  const since = new Date(Date.now() - 60 * 86_400_000).toISOString();
+  const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
   const { data: posts } = await admin
     .from("channel_posts")
     .select("id, message_id")
     .not("message_id", "is", null)
-    .gte("created_at", since);
+    .gte("created_at", since)
+    .order("created_at", { ascending: false })
+    .limit(VIEWS_POSTS);
   const ids = (posts ?? []).map((p) => p.message_id as number);
   if (ids.length === 0) return 0;
 
