@@ -83,3 +83,19 @@ describe("chat relevance", () => {
     expect(citiesIn("без міста")).toEqual([]);
   });
 });
+
+describe("cities added 20.11", () => {
+  it("finds inflected and Russian spellings", () => {
+    expect(citiesIn("Сьогодні чоловік отримав захист в Малазі")).toEqual(["Малага"]);
+    expect(citiesIn("Уэльва 18.11.2026 Сита по email")).toEqual(["Уельва"]);
+    expect(citiesIn("По Альмерии, после отказа в полиции")).toEqual(["Альмерія"]);
+    expect(citiesIn("Тарагона 20.11.26")).toEqual(["Таррагона"]);
+    expect(citiesIn("получила защиту в оренсе")).toEqual(["Оренсе"]);
+    expect(citiesIn("Авила - сита на сайте. Лейда - без ситы")).toEqual(["Авіла", "Льєйда"]);
+    expect(citiesIn("Леон - живая очередь, Самора - тоже")).toEqual(["Леон", "Самора"]);
+  });
+
+  it("does not take names and common words for cities", () => {
+    expect(citiesIn("Леонід сказав, що самореклама заборонена")).toEqual([]);
+  });
+});

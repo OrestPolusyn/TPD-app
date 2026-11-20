@@ -31,6 +31,13 @@ const FIRST_RUN_WINDOW_MS = 24 * 3600_000;
 /** Leave room under the function's 60 s for sending the digest. */
 const TIME_BUDGET_MS = 40_000;
 const SEEN_TTL_DAYS = 30;
+/** How much of the answered message is kept as context. */
+const REPLY_TEXT_MAX = 600;
+/** Answered messages fetched per source when they are not in the batch read. */
+const REPLY_FETCH_MAX = 40;
+
+/** A found message, with what it answers (when it is a reply). */
+type Found = FoundMessage & { fp: string; replyText?: string };
 
 export type RunResult =
   | { status: "not_connected" }
@@ -61,13 +68,25 @@ async function sendToOwner(texts: string[]): Promise<void> {
 }
 
 /**
+ * The id of the message `m` answers, or null. In a forum a plain post
+ * "answers" its topic's first message — that is not a reply.
+ */
+function replyTargetId(m: Api.Message, topic: number | null): number | null {
+  const r = m.replyTo;
+  if (!r || !("replyToMsgId" in r) || !r.replyToMsgId) return null;
+  if (r.forumTopic && !r.replyToTopId) return null;
+  if (topic && r.replyToMsgId === topic) return null;
+  return r.replyToMsgId;
+}
+
+/**
  * Keeps what is new for the scheduled Claude pass (see 0033); returns it.
  * The same city summary is forwarded to several chats: once is enough.
  */
 async function storeFound(
   admin: ReturnType<typeof createAdminClient>,
-  found: (FoundMessage & { fp: string })[]
-): Promise<(FoundMessage & { fp: string })[]> {
+  found: Found[]
+): Promise<Found[]> {
   const unique = [...new Map(found.map((f) => [f.fp, f])).values()];
   if (unique.length === 0) return [];
   const { data: seen } = await admin
@@ -83,7 +102,9 @@ async function storeFound(
       msg_date: f.date.toISOString(),
       text: f.text,
       link: f.link,
-      cities: citiesIn(f.text),
+      // The answered message often names the city the reply leaves out.
+      cities: citiesIn(f.replyText ? `${f.text}\n${f.replyText}` : f.text),
+      reply_text: f.replyText ?? null,
     }))
   );
   if (error) {
@@ -105,10 +126,10 @@ export async function runChatWatch(options: { notifyWhenEmpty?: boolean } = {}):
   if (sources.length === 0) return { status: "no_sources" };
 
   const started = Date.now();
-  const found: (FoundMessage & { fp: string })[] = [];
+  const found: Found[] = [];
   const errors: { title: string; error: string }[] = [];
   let hidden = 0;
-  let fresh: (FoundMessage & { fp: string })[] = [];
+  let fresh: Found[] = [];
 
   try {
     await withClient(session, creds, async (client) => {
@@ -125,6 +146,8 @@ export async function runChatWatch(options: { notifyWhenEmpty?: boolean } = {}):
           })) as unknown as Api.Message[];
 
           let maxId = source.last_message_id ?? 0;
+          const texts = new Map(messages.map((m) => [m.id, (m.message ?? "").trim()]));
+          const replies: { item: Found; to: number }[] = [];
           for (const m of messages) {
             maxId = Math.max(maxId, m.id);
             if (!source.last_message_id && m.date * 1000 < Date.now() - FIRST_RUN_WINDOW_MS) continue;
@@ -134,7 +157,25 @@ export async function runChatWatch(options: { notifyWhenEmpty?: boolean } = {}):
               hidden++;
               continue;
             }
-            found.push({ sourceTitle: source.title, date: new Date(m.date * 1000), text, link: messageLink(source, m.id), fp: fingerprint(text) });
+            const item: Found = { sourceTitle: source.title, date: new Date(m.date * 1000), text, link: messageLink(source, m.id), fp: fingerprint(text) };
+            found.push(item);
+            const to = replyTargetId(m, source.topic);
+            if (to) replies.push({ item, to });
+          }
+          // What each reply answers: from this batch when it is there, else
+          // read by id. Context only — never at the cost of the messages.
+          const missing = [...new Set(replies.filter((r) => !texts.has(r.to)).map((r) => r.to))].slice(0, REPLY_FETCH_MAX);
+          if (missing.length > 0 && Date.now() - started < TIME_BUDGET_MS) {
+            try {
+              const answered = (await client.getMessages(inputPeer(source), { ids: missing })) as unknown as (Api.Message | undefined)[];
+              for (const a of answered) if (a && typeof a.id === "number") texts.set(a.id, (a.message ?? "").trim());
+            } catch (err) {
+              console.error("chat watch: answered messages not read:", err);
+            }
+          }
+          for (const r of replies) {
+            const answered = texts.get(r.to);
+            if (answered) r.item.replyText = answered.slice(0, REPLY_TEXT_MAX);
           }
           await admin
             .from("chatwatch_sources")
