@@ -5,6 +5,7 @@ import { getAdminBotToken, getModeratorChatId, getUpdatesChannel } from "@/lib/t
 import { actionKeyboard, describeDrafts, performAction, refreshChannelPosts, undoAction } from "@/lib/telegram/adminBot";
 import { publishChannelPost, updateChannelPost } from "@/lib/telegram/channel";
 import { guidePostText } from "@/lib/guide";
+import { publishNavPost } from "@/lib/telegram/navPost";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSiteStats, formatStatsMessage } from "@/lib/stats";
 import { config } from "@/lib/config";
@@ -107,6 +108,18 @@ async function handleMessage(token: string, owner: string | null, message: NonNu
     await callTelegram(token, "sendMessage", {
       chat_id: chatId,
       text: res.ok ? (existing ? t.guideUpdated : t.guidePosted) : `${t.actionFailed} ${res.error ?? ""}`,
+    });
+    return;
+  }
+
+  // /post_nav: the pinned "navigation" post — city hashtags as a filter.
+  // Publishes and pins it the first time, updates it in place afterwards.
+  if (command === "/post_nav" && owner === String(chatId)) {
+    const res = await publishNavPost();
+    const t = messages.telegramBot;
+    await callTelegram(token, "sendMessage", {
+      chat_id: chatId,
+      text: !res.ok ? `${t.actionFailed} ${res.error ?? ""}` : res.updated ? t.navUpdated : res.pinned ? t.navPosted : t.navPostedNotPinned,
     });
     return;
   }

@@ -52,6 +52,7 @@ export function setAdminCommands(token: string, owner: string) {
       { command: "pending", description: t.adminCommandPending },
       { command: "stats", description: t.adminCommandStats },
       { command: "post_guide", description: t.adminCommandPostGuide },
+      { command: "post_nav", description: t.adminCommandPostNav },
       { command: "refresh_posts", description: t.adminCommandRefreshPosts },
       { command: "auto_on", description: t.adminCommandAutoOn },
       { command: "auto_off", description: t.adminCommandAutoOff },
